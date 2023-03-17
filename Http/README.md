@@ -27,6 +27,7 @@ PORT는 하나의 IP 주소, 즉 하나의 기기 안에서 동작하는 여러 
 ## DNS
 ![image](https://user-images.githubusercontent.com/70999462/225898186-914c7b04-3e9d-4fe4-89ed-278a0fb35e2b.png)
 > [인프런 김영한 HTTP 강좌](https://www.inflearn.com/course/http-%EC%9B%B9-%EB%84%A4%ED%8A%B8%EC%9B%8C%ED%81%AC/dashboard)
+
 **DNS(Domain Name System)** 는 일련의 숫자로 구성되어 외우기 어려운 IP 주소를 대신해 알기 쉬운 직관적인 이름을 부여하는 방법이다. 사용자가 접속하고자 하는 서버의 IP 주소를 모르더라도 DNS를 통해 연결할 수 있다. 또한 서버의 IP 주소가 변경되면 변경된 주소를 도메인과 연결시키면, 사용자는 IP 주소의 변경과 상관없이 동일하게 접속이 가능하다.
 
 
