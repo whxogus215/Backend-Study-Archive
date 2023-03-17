@@ -6,7 +6,7 @@
 
 ## 목차
 
-1. 개발자를 위한 HTTP 지식
+1. [개발자를 위한 HTTP 지식](https://github.com/whxogus215/Backend-Study-Archive/tree/main/Http)
 
 ---
 
