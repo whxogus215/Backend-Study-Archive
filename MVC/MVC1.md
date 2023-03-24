@@ -1,6 +1,7 @@
 # Contents Of Http
 - [서블릿](#서블릿의-역할)
-  - [서블릿을 통해 처리하는 HTTP 메서드](#get-요청) 
+  - [서블릿을 통해 처리하는 HTTP 메서드](#get-요청)
+  - [서블릿을 이용한 HTTP 응답 처리](#http-응답처리)
 - [PORT 그리고 DNS](#PORT)
 - 통신
 
@@ -101,6 +102,64 @@ protected void service(HttpServletRequest request, HttpServletResponse response)
 
 ![image](https://user-images.githubusercontent.com/70999462/227415765-ecf44fe6-c717-4653-b2c4-223d529603cf.png)
 - 이처럼 JSON 타입의 요청 데이터를 자바의 겍체로 접근하여 가져올 수 있다.
+
+### HTTP 응답처리
+HttpServlet이 다루는 요청 변수(HttpServletRequest request)와 응답 변수(HttpServletResponse response) 중 응답 변수를 통해 응답에 관한 메서드들을 사용할 수 있다. HTTP 응답의 종류는 크게 텍스트 출력, HTML 출력 그리고 API 응답이다. **주의할 점은 각각의 방식마다 Content-Type이 다르기 때문에 타입별로 지정해주어야 한다.**
+```java
+//[status-line]
+  response.setStatus(HttpServletResponse.SC_OK); // 단순히 숫자 200을 넘기는 것보다는 더 의미있는 값으로 설정할 수 있음
+
+  //[response-headers]
+//        response.setHeader("Content-Type", "text/plain;charset=utf-8");
+  response.setContentType("text/plain");
+  response.setCharacterEncoding("utf-8");
+  response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  response.setHeader("Pragma", "no-cache");
+  response.setHeader("my-header", "hello"); // 사용자가 직접 추가한 헤더 항목
+
+  // 메세지 body 추가
+  PrintWriter writer = response.getWriter();
+  writer.print("ok");
+
+//        response.setStatus(HttpServletResponse.SC_FOUND);
+//        response.setHeader("Location", "/basic/hello-form.html");
+  response.sendRedirect("/basic/hello-form.html");
+```
+> 일반적인 메세지 바디에 텍스트를 담는 방법, Content-Type은 "text/plain"이며, utf-8 인코딩 방식을 사용해야 한글 출력이 깨지지 않는다. 또한 redirect 기능을 지원하여 다른 url로 연결이 가능하다. (이 때 HTTP 응답 코드는 302로 자동 설정)
+
+```java
+// Content-Type : text/html; charset=utf-8
+response.setContentType("text/html");
+response.setCharacterEncoding("utf-8"); // 안하면 한글 깨짐
+
+PrintWriter writer = response.getWriter();
+writer.println("<html>");
+writer.println("<body>");
+writer.println("    <div>안녕?</div>");
+writer.println("</body>");
+writer.println("</html>");
+```
+> html을 출력하는 방법으로, 화면에는 안녕이 출력된다. 이때, 안녕은 문자가 아니라 개발자가 작성한 HTML 소스로 이루어져 있다. Content-Type은 "text/html"로 지정해야 한다.
+
+```java
+private ObjectMapper objectMapper = new ObjectMapper();
+@Override
+protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    // Content-Type : application/json
+    response.setContentType("application/json");
+    response.setCharacterEncoding("utf-8");
+
+    HelloData helloData = new HelloData();
+    helloData.setUsername("Kim");
+    helloData.setAge(20);
+
+    //{"username" : "Kim", "age" : 20}
+    String result = objectMapper.writeValueAsString(helloData);
+    response.getWriter().write(result);
+}
+```
+> 주로 사용하는 API 응답 방법이다. JSON도 문자열에 불과하기 때문에 자바 객체를 사용하여 변환할 수 있다.(Jackson 라이브러리) Content-Type은 "application/json"으로 지정해야 한다.
+
 
 
 
