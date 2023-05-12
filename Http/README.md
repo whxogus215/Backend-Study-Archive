@@ -116,7 +116,7 @@ ex) POST : /members,  PUT : /members/100
 - 말 그대로 리소스를 제거하는 메서드이다. 제거하는 메서드이기 때문에 리소스의 정확한 식별자 값을 전달한다.
 
 ## HTTP 메서드의 속성
-![image](HTTP 속성표)
+![image](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/718d860a-4545-4c9c-bcb0-f86a8041a394)
 > [출처](https://ko.wikipedia.org/wiki/HTTP)
 
 1. 안전(Safe)
@@ -180,7 +180,7 @@ ex) POST : /members,  PUT : /members/100
     - 회원 수정 /members/{id}/edit - POST
     - 회원 삭제 /members/{id}/delete - POST
   - 이처럼 DELETE,PUT을 사용한다면 간편해질 URI가 동사를 사용함으로써 복잡해질 수 있다. 하지만 실무에서는 이처럼 컨트롤 URI를 사용해서 구분하는 경우가 많다.
-- ![image](참고하면 좋은 URI 설계 개념)
+- ![image](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/7040f55f-16a0-4192-9935-bf7c848b5e81)
 > [인프런 김영한 HTTP 강좌](https://www.inflearn.com/course/http-%EC%9B%B9-%EB%84%A4%ED%8A%B8%EC%9B%8C%ED%81%AC/dashboard)
 
 
