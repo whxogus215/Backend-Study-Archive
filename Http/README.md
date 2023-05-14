@@ -206,7 +206,7 @@ ex) POST : /members,  PUT : /members/100
 - 요청을 완료하기 위해 유저 에이전트(클라이언트의 프로그램 ex. 웹 브라우저)의 추가 조치가 필요하다.
 ### 리다이렉션(Redirection)이란
 - 서버 측에서 응답을 할 때, 3XX 응답 결과와 헤더에 Location 정보를 보낸다면, 웹 브라우저는 그 Location으로 자동으로 이동한다.
-- [사진 리다이렉션1]
+- ![리다이렉션1](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/4aaa4a67-0ee2-4941-abc4-30e0ee11c5aa)
 > [인프런 김영한 HTTP 강좌](https://www.inflearn.com/course/http-%EC%9B%B9-%EB%84%A4%ED%8A%B8%EC%9B%8C%ED%81%AC/dashboard)
   - 사용자가 따로 입력하지 않아도 웹 브라우저가 자동으로 새 URI로 요청을 한다.
 1. 영구 리다이렉션 : 특정 리소스의 URI가 영구적으로, 즉 완전히 변경되었을 경우이다.
@@ -224,10 +224,10 @@ ex) POST : /members,  PUT : /members/100
 3. PRG(Post/Redirect/Get)
 - POST로 특정 URI로 요청을 보낸 상태에서 새로고침을 한다면 웹 브라우저는 동일한 POST 요청을 하게 된다. 이는 중복주문이 될 수 있다는 뜻이다.
 - PRG 패턴을 사용하면 서버 측에서 오류를 처리하는 빈도수가 현저히 줄어든다. (매우 중요)
-- [사진 PRG 사용전]
+- ![PRG 사용전](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/9810356b-49a0-4e77-88b8-2b490df79daa)
 > [인프런 김영한 HTTP 강좌](https://www.inflearn.com/course/http-%EC%9B%B9-%EB%84%A4%ED%8A%B8%EC%9B%8C%ED%81%AC/dashboard)
 - POST 주문 후에 주문 결과 화면을 GET 메서드로 리다이렉트하게 한다.(302 상태코드와 함께 결과화면에 해당하는 URI를 Location 헤더에 담아서 전송) 그러면 사용자는 새로고침을 하더라도 기존의 POST에서 GET으로 바뀐 상태이기 때문에 결과 화면만을 계속 보게 보게된다. (중복 주문이 안됨)
-- [사진 PRG 사용후]
+- ![PRG 사용후](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/3486c7d9-9b42-4d8c-81ac-80fa7f9a0f0e)
 > [인프런 김영한 HTTP 강좌](https://www.inflearn.com/course/http-%EC%9B%B9-%EB%84%A4%ED%8A%B8%EC%9B%8C%ED%81%AC/dashboard)
 
 4. 304 Not Modified
