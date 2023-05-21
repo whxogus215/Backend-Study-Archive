@@ -11,6 +11,7 @@
   - [HTTP 속성](#HTTP-메서드의-속성)
   - [HTTP API 설계 예시](#HTTP-API-설계-예시)
 - [HTTP 상태코드](#HTTP-상태코드)
+- [HTTP 헤더1](#HTTP-헤더1)
 
 ###### Reference
 - **(main)** 인프런 김영한 HTTP 강좌 : https://www.inflearn.com/course/http-%EC%9B%B9-%EB%84%A4%ED%8A%B8%EC%9B%8C%ED%81%AC/dashboard
@@ -273,7 +274,20 @@ ex) POST : /members,  PUT : /members/100
 - 주로 500번이 많이 사용된다.
 - 500번대는 정말 서버에 에러가 생겼을 경우에만 보내야 한다. 인증되지 않은 리소스 요청에 대한 응답 같은 경우엔 정상적인 프로세스로 500번대 응답코드는 적절하지 않다.(4XX나 2XX로 해결)
 
+# HTTP 헤더1
 
+## 표현
+HTTP를 통해 서버에서 응답을 할 때, 표현(Representation)이라는 말을 사용한다. 실제 DB에 저장되어 있는 데이터나 기타 바이트 코드를
+클라이언트에게 전달할 때는 HTML, JSON, XML 등의 형식으로 바꾸어서 전달한다. 이처럼 특정 데이터를 특정 폼으로 바꾸어 전송하기 때문에 표현이라는 말을 쓴다.
+즉, 표현(표현 데이터)이란 실제 HTTP를 통해 전송되는 데이터를 뜻한다. 
+### 표현 데이터의 메타데이터를 담는 헤더 정보
+1. Content-Type : 표현 데이터의 형식
+   - HTTP 바디에 해당하는 부분이 어떠한 형식으로 되어있는지에 대한 정보를 담고 있다. (ex. text/html; charset=utf-8 , application/json, image/png)
+2. Content-Encoding : 표현 데이터의 압축 방식
+   - 데이터를 보내는 입장에서 데이터를 압축하였다면 데이터를 받는 입장에서는 압축을 해제하기 위해 어떠한 방식으로 압축되었는지 알아야 한다. 인코딩 헤더의 정보를 확인한 뒤 압축을 해제한다.
+   - ex. gzip, deflate, identity(압축을 안한다는 뜻)
+3. Content-Language : 표현 데이터의 자연 언어(ex. 한국어(ko), 영어(en) 등)
+4. Content-Length : 표현 데이터의 길이
 
 
 
