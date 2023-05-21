@@ -296,10 +296,9 @@ HTTP를 통해 서버에서 응답을 할 때, 표현(Representation)이라는 �
 2. Accept-Charset : 클라이언트가 선호하는 문자 인코딩
 3. Accept-Encoding : 클라이언트가 선호하는 압축 인코딩
 4. Accept-Language : 클라이언트가 선호하는 자연 언어
-
-[Accpet 적용전 사진]
-[Accept 적용후 사진]
-
+![적용 전](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/bbb908fa-a594-405d-ba57-6b3710a9c8f7)
+![적용 후](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/915e94c5-13be-4a1c-8a85-0e952cba31f9)
+> [인프런 김영한 HTTP 강좌](https://www.inflearn.com/course/http-%EC%9B%B9-%EB%84%A4%ED%8A%B8%EC%9B%8C%ED%81%AC/dashboard)
 ### 협상과 우선순위(Quality Values(q))
 클라이언트는 요청 시에 Accept에 해당하는 항목에 우선순위를 줄 수 있다. 우선순위는 **0에서 1사이이며, 값이 클수록 높은 우선순위이다.**
 만약 우선순위 값이 없다면 생략된 것으로 1이다.  
@@ -317,7 +316,8 @@ HTTP를 통해 서버에서 응답을 할 때, 표현(Representation)이라는 �
 4. \*/\*
 
 마찬가지로 구체적인 것을 기준으로 미디어 타입의 우선순위를 맞춘다.
-[협상과 우선순위3 사진]
+![협상3](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/0ae1e800-3d8d-4ad9-a10e-315dd1ab74aa)
+> [인프런 김영한 HTTP 강좌](https://www.inflearn.com/course/http-%EC%9B%B9-%EB%84%A4%ED%8A%B8%EC%9B%8C%ED%81%AC/dashboard)
 
 
 
