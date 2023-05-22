@@ -322,17 +322,17 @@ HTTP를 통해 서버에서 응답을 할 때, 표현(Representation)이라는 �
 ## 전송방식
 ### 단순전송
 Content-Length의 길이가 정해져 있으며, 데이터를 한번에 다 보낸다.
-[단순 전송 그림]
+![단순전송](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/13992942-7f5f-4fee-9823-6f2cc13ede62)
 ### 압축전송
 말 그대로 데이터를 한 번 압축해서 전송하며, 전송 용량이 줄어든다. 이 때 응답 헤더에는 당연히 `Content-Encoding` 필드가 있어야 한다. 그래야 받는 사람이 적절하게 디코딩을 할 수 있기 때문이다.
-[압축 전송 그림]
+![압축 전송](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/b88df1e0-860e-430c-85c3-0f427b66fe42)
 ### 분할전송
 응답 헤더에 `Transfer-Encoding : chunked`라는 항목이 있으며, 덩어리 형식으로 데이터를 보내는 것이다. 보내는 데이터에 몇 바이트 씩 나뉘어 지는지에 대한 정보도 메시지 바디에 표시되어 있다.
-[분할 전송 그림]
+![분할 전송](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/abc26dc6-5ce3-4d72-a325-fab59348c3d6)
 ### 범위전송
 클라이언트는 해당 데이터의 바이트 범위를 지정해서 요청할 수 있다. 이 때, 응답 헤더에서는 `Range`라는 필드가 존재한다. 그러면 서버는 요청한 범위에 해당하는 만큼만 데이터를 보낸다.
-[범위 전송 그림]
-
+![범위 전송](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/25c43d86-a1a9-417d-b365-0c2fcabcf54b)
+> [인프런 김영한 HTTP 강좌](https://www.inflearn.com/course/http-%EC%9B%B9-%EB%84%A4%ED%8A%B8%EC%9B%8C%ED%81%AC/dashboard)
 ## 일반정보
 HTTP의 요청헤더 혹은 응답헤더에 존재하는 항목 중 사용자 혹은 서버에 관련된 정보들을 담는 필드에 대한 부분이다.
 ### Referer
@@ -356,7 +356,8 @@ ex) Server : Apache/2.2.22 (Debian), nginx
 ### Host
 매우 중요한 정보이다. **요청헤더에서 사용되며 필수이다.** 하나의 서버는 여러 도메인(웹 사이트)를 처리할 수가 있다. 따라서
 요청 측에서 어떤 도메인으로 값을 받으려는건지를 알아야 한다. 즉, Host는 클라이언트 측에서 정보를 요청하는 대상 사이트이다.
-[Host 사진]
+![호스트](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/cf9645bc-d57a-4eeb-bf80-6572a721a8ed)
+> [인프런 김영한 HTTP 강좌](https://www.inflearn.com/course/http-%EC%9B%B9-%EB%84%A4%ED%8A%B8%EC%9B%8C%ED%81%AC/dashboard)
 ### Location
 웹 브라우저가 3XX 응답 결과일 경우 Location 필드를 통해 자동 이동할 URI 정보를 보낼 수 있다. (서버 측에서)
 201 (Created)의 경우에도 Location 필드를 설정할 수 있는데, 이는 요청에 의해 **생성된 리소스 URI** 정보이다.
