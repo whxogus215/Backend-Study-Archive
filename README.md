@@ -6,5 +6,3 @@
 2. [스프링 MVC 1편](/MVC/MVC1.md)
 
 ---
-
-Please make sure to update tests as appropriate.
