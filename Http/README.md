@@ -454,6 +454,8 @@ URI에 사용자 정보를 넣지 않아도 된다.
 즉, 데이터가 수정되지 않았음을 알려주는 것이다. **그러면 서버 측은 HTTP Body를 제외한 헤더만 전송하게 된다. 따라서 적은 용량만 전송하기 때문에 훨씬 실용적이다.**
 그리고 클라이언트는 기존의 캐시 데이터를 재활용할 수 있다.
 ![검증헤더2](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/9c83a4b1-7970-45cb-9db7-4c9539ee78dc)
+> [인프런 김영한 HTTP 강좌](https://www.inflearn.com/course/http-%EC%9B%B9-%EB%84%A4%ED%8A%B8%EC%9B%8C%ED%81%AC/dashboard)
+
 
 ETag와 조합하여 사용되는 조건부 요청 헤더로 `If-None-Match`가 존재한다. 이는 캐시에 저장된 ETag 값(HashCode)과 서버에 있는 데이터의 ETag 값이
 일치하는 지를 확인하는 것이다. 캐시 시간이 초과되었을 때, 클라이언트는 `If-None-Match` 헤더에 캐시에 저장되어 있던 ETag 값을 담아 전송한다.
@@ -494,7 +496,36 @@ ETag와 조합하여 사용되는 조건부 요청 헤더로 `If-None-Match`가 
     - 데이터에 민감한 정보가 있을 경우, 이를 저장해 놓는 것은 위험할 수 있다. 따라서 클라이언트에게 데이터를 사용한 후 최대한 빨리 메모리에서 삭제하도록 하는 것이다.
     - `no-store`와 `no-cache` 혼동 주의
 
+## 프록시 캐시 서버
+Origin 서버에서 매번 데이터를 가져오는 것은 시간이 오래걸린다. 여기에 사용자가 계속해서 많아진다면 추가적으로 더 시간이 소요될 수 있을 것이다.
+만약에 Origin 서버의 데이터를 그대로 가지고 있으며, 사용자와의 거리는 보다 가까운 서버가 있다면, 사용자는 기존의 데이터를 받되 다운로드 시간은 더 빠를 것이다.
+이를 위해 존재하는 것이 프록시 캐시 서버이다. 내용 자체는 매우 단순하기 때문에 그림으로 이해하는 것이 더 편할 것이다.
+[프록시 캐시 그림 1]
+[프록시 캐시 그림 2]
+> [인프런 김영한 HTTP 강좌](https://www.inflearn.com/course/http-%EC%9B%B9-%EB%84%A4%ED%8A%B8%EC%9B%8C%ED%81%AC/dashboard)
+### Cache-Control 추가 내용
+- Cache-Control : public
+  - 서버로부터 내려오는 응답이 public 캐시에 저장되어도 된다. (공공의 데이터, 보안 위험 낮음)
+- Cache-Control : private
+  - 응답이 해당 사용자만을 위해 내려오는 것이다. 따라서 공유되어서는 안되는 데이터이다. private 캐시에 저장해야 한다.(기본값)
 
+## 캐시 무효화
+서버 측에서 캐시 컨트롤을 하지 않더라도, 웹 브라우저(클라이언트)는 알아서 응답을 캐시로 저장한다. 따라서 캐시에 저장되어서는 안되는 데이터 **(ex. 계속 갱신이 되어야 하는 데이터 - 통장잔고 등)** 가 내려질 경우
+서버 측에서 Cache-Control을 `no-cache, no-store, must-revalidate`, Pragma를 `no-cache`(HTTP 1.0 하위 버전을 위한 헤더)를 꼭 넣어줘야 한다.
+
+`no-cache`와 `no-store`는 위에서 설명하였고, `must-revalidate`는 `no-cache`와 마찬가지로 프록시 서버가 아닌 **Origin 서버**에서 검증을 해야 한다. (캐시가 만료되기 전에는 검증하지 않아도 된다.)
+하지만 만약 Origin 서버에 접근을 실패했더라도 200 OK가 아닌 반드시 504 오류 응답을 받아야 한다. `must-revalidate`는 캐시 시간이 유효할 경우엔 캐시를 사용한다.
+> no-cache : 캐시를 쓸 수 있지만 쓸때마다 Origin 서버에 검증을 받아야 함. must-revalidate : 캐시 시간이 유효하면 검증하지 않고, 캐시를 사용해도 됨.
+
+[no-cache 기본동작 1]
+[no-cache 기본동작 1]
+[must-revalidate]
+> [인프런 김영한 HTTP 강좌](https://www.inflearn.com/course/http-%EC%9B%B9-%EB%84%A4%ED%8A%B8%EC%9B%8C%ED%81%AC/dashboard)
+
+이처럼 `no-cache`의 경우, Origin 서버에 접근하지 못했더라도 프록시 캐시의 데이터를 보내준다. 하지만 `must-revalidate`는 Origin 서버에 접근하지 못하면 항상 오류를 발생시킨다.
+만약 통장잔고와 같은 중요한 데이터인 경우, 항상 최신화된 데이터를 응답해야 한다. 프록시 캐시의 데이터가 Origin 서버의 데이터가 다를 경우 함부로 내려줘선 안될 것이다.
+
+즉, 캐시 무효화, 계속 갱신이 되어야 하는 데이터를 얻기 위해서는 `no-cache`와 `must-revalidate`를 같이 써야 한다. (이 조합이 어떤 원리인지를 아는 것보다는 과거에서부터 발전된 형태가 이러한 것임을 알고 넘어가기)
 
 
   
