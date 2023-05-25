@@ -500,8 +500,8 @@ ETag와 조합하여 사용되는 조건부 요청 헤더로 `If-None-Match`가 
 Origin 서버에서 매번 데이터를 가져오는 것은 시간이 오래걸린다. 여기에 사용자가 계속해서 많아진다면 추가적으로 더 시간이 소요될 수 있을 것이다.
 만약에 Origin 서버의 데이터를 그대로 가지고 있으며, 사용자와의 거리는 보다 가까운 서버가 있다면, 사용자는 기존의 데이터를 받되 다운로드 시간은 더 빠를 것이다.
 이를 위해 존재하는 것이 프록시 캐시 서버이다. 내용 자체는 매우 단순하기 때문에 그림으로 이해하는 것이 더 편할 것이다.
-[프록시 캐시 그림 1]
-[프록시 캐시 그림 2]
+![프록시 캐시 1](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/a94d0e19-55c0-4ae5-9b96-21ed55890748)
+![프록시 캐시 2](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/c7616913-64a0-4cc3-bad1-8bdd619038d7)
 > [인프런 김영한 HTTP 강좌](https://www.inflearn.com/course/http-%EC%9B%B9-%EB%84%A4%ED%8A%B8%EC%9B%8C%ED%81%AC/dashboard)
 ### Cache-Control 추가 내용
 - Cache-Control : public
@@ -517,9 +517,9 @@ Origin 서버에서 매번 데이터를 가져오는 것은 시간이 오래걸�
 하지만 만약 Origin 서버에 접근을 실패했더라도 200 OK가 아닌 반드시 504 오류 응답을 받아야 한다. `must-revalidate`는 캐시 시간이 유효할 경우엔 캐시를 사용한다.
 > no-cache : 캐시를 쓸 수 있지만 쓸때마다 Origin 서버에 검증을 받아야 함. must-revalidate : 캐시 시간이 유효하면 검증하지 않고, 캐시를 사용해도 됨.
 
-[no-cache 기본동작 1]
-[no-cache 기본동작 1]
-[must-revalidate]
+![no-cache 기본 동작1](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/3b337ec1-ff21-4c00-af77-e444dd00dc26)
+![no-cache 기본 동작2](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/9a678c9b-fded-4d5c-a7ec-88d267afebb6)
+![must-revalidate](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/c03479bf-41a1-488a-b94c-3bd9ee5727d4)
 > [인프런 김영한 HTTP 강좌](https://www.inflearn.com/course/http-%EC%9B%B9-%EB%84%A4%ED%8A%B8%EC%9B%8C%ED%81%AC/dashboard)
 
 이처럼 `no-cache`의 경우, Origin 서버에 접근하지 못했더라도 프록시 캐시의 데이터를 보내준다. 하지만 `must-revalidate`는 Origin 서버에 접근하지 못하면 항상 오류를 발생시킨다.
