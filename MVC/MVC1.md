@@ -2,8 +2,7 @@
 - [서블릿](#서블릿의-역할)
   - [서블릿을 통해 처리하는 HTTP 메서드](#get-요청)
   - [서블릿을 이용한 HTTP 응답 처리](#http-응답처리)
-- [PORT 그리고 DNS](#PORT)
-- 통신
+  - [서블릿으로 회원 관리 웹 애플리케이션 만들기](#서블릿으로-회원-관리-웹-애플리케이션-만들기)
 
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 1편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1/dashboard
@@ -160,7 +159,64 @@ protected void service(HttpServletRequest request, HttpServletResponse response)
 ```
 > 주로 사용하는 API 응답 방법이다. JSON도 문자열에 불과하기 때문에 자바 객체를 사용하여 변환할 수 있다.(Jackson 라이브러리) Content-Type은 "application/json"으로 지정해야 한다.
 
+### 서블릿으로 회원 관리 웹 애플리케이션 만들기
 
+```java
+  @WebServlet(name = "memberListServlet", urlPatterns = "/servlet/members")
+  public class MemberListServlet extends HttpServlet {
+    private MemberRepository memberRepository = MemberRepository.getInstance();
+    @Override
+    protected void service(HttpServletRequest request, HttpServletResponse
+            response)
+            throws ServletException, IOException {
+      response.setContentType("text/html");
+      response.setCharacterEncoding("utf-8");
+      List<Member> members = memberRepository.findAll();
+      PrintWriter w = response.getWriter();
+      w.write("<html>");
+      w.write("<head>");
+      w.write(" <meta charset=\"UTF-8\">");
+      w.write(" <title>Title</title>");
+      w.write("</head>");
+      w.write("<body>");
+      w.write("<a href=\"/index.html\">메인</a>");
+      w.write("<table>");
+      w.write(" <thead>");
+      w.write(" <th>id</th>");
+      w.write(" <th>username</th>");
+      w.write(" <th>age</th>");
+      w.write(" </thead>");
+      w.write(" <tbody>");
+  /*
+   w.write(" <tr>");
+   w.write(" <td>1</td>");
+   w.write(" <td>userA</td>");
+   w.write(" <td>10</td>");
+   w.write(" </tr>");
+  */
+      for (Member member : members) {
+        w.write(" <tr>");
+        w.write(" <td>" + member.getId() + "</td>");
+        w.write(" <td>" + member.getUsername() + "</td>");
+        w.write(" <td>" + member.getAge() + "</td>");
+        w.write(" </tr>");
+      }
+      w.write(" </tbody>");
+      w.write("</table>");
+      w.write("</body>");
+      w.write("</html>");
+    }
+  }
+```
+자바의 HTTP 서블릿을 사용하면, HTTP 요청의 값들을 가져와 동적인 응답결과를 생성할 수 있다. 하지만 위 코드에서 보이듯이
+**HTML 문서를 작성하는 것이 매우 번거롭고 복잡하다.** 이는 자바 코드로 HTML 문서를 만들었기 때문이다. 반대로 HTML 문서에 동적으로 변경되어야
+하는 부분만 자바 코드로 구현한다면 훨씬 편리할 것이다. 이를 가능하게 해주는 것이 바로 **템플릿 엔진**이다.  
+
+- 기존의 서블릿 : 자바 코드 안에서 HTML 작성
+- 템플릿 엔진 : HTML 안에서 자바(기타 코드 포함) 코드 작성
+
+템플릿 엔진을 사용하면 HTML 문서에서 필요한 부분만 코드를 통해 동적으로 적용할 수 있다. 템플릿 엔진에는 `JSP, Tymeleaf 등`이 있으며,
+JSP는 이제 거의 사용하지 않는다. 성능 적인 면에서 더 좋고 스프링과 잘 통합되는 Thymeleaf가 있기 때문이다.
 
 
 
