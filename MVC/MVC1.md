@@ -218,5 +218,52 @@ protected void service(HttpServletRequest request, HttpServletResponse response)
 템플릿 엔진을 사용하면 HTML 문서에서 필요한 부분만 코드를 통해 동적으로 적용할 수 있다. 템플릿 엔진에는 `JSP, Tymeleaf 등`이 있으며,
 JSP는 이제 거의 사용하지 않는다. 성능 적인 면에서 더 좋고 스프링과 잘 통합되는 Thymeleaf가 있기 때문이다.
 
+### JSP로 회원 관리 웹 애플리케이션 만들기
+앞서 서블릿으로 작성한 코드는 비즈니스 로직을 처리하기엔 문제가 없지만 HTML 코드(View)를 작성하기엔
+번거롭고 불편했다. 이는 **자바 코드로 HTML 코드를 작성하기 때문이다.** JSP를 사용하면 HTML 코드를 작성하는
+부분을 서블릿보다 간편하게 사용할 수 있다. JSP는 서블릿과 다르게 **HTML 코드를 작성하고 그 안에 자바 코드를 부분부분 작성하게 된다.**
 
+```java
+  <%@ page import="hello.servlet.domain.member.MemberRepository" %>
+  <%@ page import="hello.servlet.domain.member.Member" %>
+  <%@ page contentType="text/html;charset=UTF-8" language="java" %>
+  <%
+  // request, response 사용 가능
+          MemberRepository memberRepository = MemberRepository.getInstance();
+          System.out.println("save.jsp");
+          String username = request.getParameter("username");
+          int age = Integer.parseInt(request.getParameter("age"));
+          Member member = new Member(username, age);
+          System.out.println("member = " + member);
+          memberRepository.save(member);
+          %>
+  <html>
+  <head>
+    <meta charset="UTF-8">
+  </head>
+  <body>
+  성공
+  <ul>
+    <li>id=<%=member.getId()%></li>
+    <li>username=<%=member.getUsername()%></li>
+    <li>age=<%=member.getAge()%></li>
+  </ul>
+  <a href="/index.html">메인</a>
+  </body>
+  </html>
+```
+- 실행 시에는 확장자인 `.jsp`까지 적어줘야 한다.
+- JSP 안에 비즈니스 로직을 처리해야 하는 경우, 자바와 마찬가지로 import가 필요하다.
+- `<% ~~ %>` 안에 자바 코드를 입력할 수 있다.
+- `<%= ~~ %>` 안에 자바 코드를 입력할 수 있으며, **이는 HTML에 출력된다.**
 
+이처럼 **JSP는 서블릿과 다르게 HTML을 중심으로 하며, 자바 코드를 중간중간 입력하는 방식이다.**
+
+### 서블릿과 JSP의 한계 그리고 이를 해결할 MVC 패턴의 등장
+서블릿을 사용할 때는 View 영역 개발이 어려웠고, JSP를 통해 이를 극복할 수 있었다.
+하지만 JSP의 경우 화면을 뿌려주는 HTML(View 영역)과 비즈니스 로직을 처리하는 자바 코드가 같이 섞여있다.
+즉, JSP에 중요한 비즈니스 로직 코드가 많이 노출되어 있다는 뜻이며 JSP가 너무 많은 역할을 담당하고 있다. (하나의 코드에서 처리하는 것이 매우 많음)
+
+만약 실제 서비스에서 JSP를 사용한다면 이보다 훨씬 많은 양의 코드가 있을 것이다. 여기서 View와 비즈니스 로직을 분리하고
+다른 코드를 건드리지 않고 유지보수를 하기엔 매우 어렵다. 따라서 **서블릿 등을 통해 비즈니스 로직을 처리하고, 
+JSP는 View 영역에만 집중하도록 서로를 분리시키는 방법이 등장했다. 이것이 바로 MVC 패턴이다.**
