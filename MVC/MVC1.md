@@ -283,3 +283,7 @@ MVC의 등장은 JSP의 역할 과부하를 배경으로 한다. 하지만 이�
   - 서비스 : 컨트롤러의 요청을 받은 서비스 계층은 실제 로직을 수행하여 결과 값을 다시 컨트롤러에게 넘긴다.
 - 모델 : 뷰 로직에서 출력할 데이터를 담고 있는 곳이다. 모델 덕분에 뷰와 비즈니스 로직은 직접적으로 연결되어 소통하지 않는다.
 - 뷰 : 모델에 담겨있는 데이터를 사용해여 화면을 그리는 역할을 한다. (ex. HTML 생성)
+
+![MVC 패턴 이전](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/760c6d1b-a4cd-48c1-b5f8-4244372b89e8)
+![MVC 패턴](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/64f5f106-f97a-4a19-b089-c9eb9b623785)
+
