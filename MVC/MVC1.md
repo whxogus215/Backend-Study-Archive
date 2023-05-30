@@ -287,3 +287,89 @@ MVC의 등장은 JSP의 역할 과부하를 배경으로 한다. 하지만 이�
 ![MVC 패턴 이전](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/760c6d1b-a4cd-48c1-b5f8-4244372b89e8)
 ![MVC 패턴](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/64f5f106-f97a-4a19-b089-c9eb9b623785)
 
+### MVC 패턴 적용
+```java
+@WebServlet(name = "mvcMemberFormServlet", urlPatterns = "/servlet-mvc/members/new-form")
+public class MvcMemberFormServlet extends HttpServlet {
+      @Override
+      protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+         String viewPath = "/WEB-INF/views/new-form.jsp";
+         RequestDispatcher dispatcher = request.getRequestDispatcher(viewPath);
+         dispatcher.forward(request, response);
+     }
+}
+```
+컨트롤러를 통해 view 영역에 해당하는 JSP 파일을 불러온다. `dispatcher.forward()`는 서버 내부에서 JSP를 호출하는 것이다.
+즉, 클라이언트는 요청을 한 번만 하지만 서버 내부에서는 여러 번 호출이 일어나면서 JSP 결과를 응답한다. **redirect와 다른 점은
+redirect는 클라이언트에게 응답이 나갔다가 클라이언트가 경로를 바꾸고 다시 요청한다. 따라서 URL 경로 또한 변경된다.
+하지만 forward는 내부에서 호출이 여러번 일어나기 때문에 클라이언트 측에서는 하나의 경로에 대해서 응답이 내려진 것으로 인식한다.**
+
+viewPath가 `/WEB-INF`를 루트 경로로 하고 있는데, 이 경로는 외부에서 직접 JSP를 호출할 수 없는 경로이다. 즉, 클라이언트는
+**컨트롤러를 통해서 JSP를 얻을 수 있는 것이다. (컨트롤러가 필요한 이유)** 
+
+```java
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<html>
+<head>
+   <meta charset="UTF-8">
+   <title>Title</title>
+</head>
+<body>
+<!-- 상대경로 사용, [현재 URL이 속한 계층 경로 + /save] -->
+<form action="save" method="post">
+   username: <input type="text" name="username" />
+   age: <input type="text" name="age" />
+   <button type="submit">전송</button>
+</form>
+
+</body>
+</html>
+```
+form 태그의 action 속성을 보면 상대경로로 지정되어 있다. 따라서 `/servlet-mvc/members/new-form` Path로 요청한 것에 대해서
+상위 계층인 `servlet-mvc/members`에서 save 경로로 이동하게 된다.
+> /servlet-mvc/members/new-form에서 저장버튼을 누르면 /servlet-mvc/members/save 로 이동한다. (상대경로를 사용)
+
+```java
+@WebServlet(name = "mvcMemberSaveServlet", urlPatterns = "/servlet-mvc/members/save")
+public class MvcMemberSaveServlet extends HttpServlet {
+    private MemberRepository memberRepository = MemberRepository.getInstance();
+    @Override
+    protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+       String username = request.getParameter("username");
+       int age = Integer.parseInt(request.getParameter("age"));
+       Member member = new Member(username, age);
+       System.out.println("member = " + member);
+       memberRepository.save(member);
+       
+       //Model에 데이터를 보관한다.
+       request.setAttribute("member", member);
+       String viewPath = "/WEB-INF/views/save-result.jsp";
+       RequestDispatcher dispatcher = request.getRequestDispatcher(viewPath);
+       dispatcher.forward(request, response);
+    }
+}
+```
+```java
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<html>
+<head>
+ <meta charset="UTF-8">
+</head>
+<body>
+성공
+<ul>
+ <li>id=${member.id}</li>
+ <li>username=${member.username}</li>
+ <li>age=${member.age}</li>
+</ul>
+<a href="/index.html">메인</a>
+</body>
+</html>
+
+```
+HttpServlet의 Request 객체에는 내부 저장소가 존재한다. 따라서 이를 **Model로 사용한다.** `setAttribute()`를 사용하면
+Model에 데이터를 담을 수 있다. 이 때 담기는 데이터는 저장소인 `memberRepository`로 부터 가져온 결과 값이다.
+반대로 View 영역에서는 Model의 데이터를 꺼낼 때 `getAttribute()`를 사용한다. 하지만 JSP 문법에서 `${}`를 제공함으로써 Property 접근법으로 쉽게 값을 가져올 수 있다.
+
+요즘엔 JSP를 거의 쓰지 않는 분위기며, 타임리프를 더 많이 쓰기 때문에 JSP 문법에 대해 굳이 숙지할 필요는 없다.
+다만 JSP를 써야하는 상황이 올 경우, 검색을 통해 배우면 된다.(난이도도 많이 어렵지 않음)
