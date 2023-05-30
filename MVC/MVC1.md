@@ -6,6 +6,7 @@
   - [JSP로 회원 관리 웹 애플리케이션 만들기](#JSP로-회원-관리-웹-애플리케이션-만들기)
 - [MVC 패턴](#MVC-패턴)
   - [MVC 패턴 개요](#MVC-패턴-개요)
+  - [MVC 패턴 적용](#mvc-패턴-적용)
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 1편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1/dashboard
 
