@@ -8,7 +8,7 @@
   - [MVC 패턴 개요](#MVC-패턴-개요)
   - [MVC 패턴 적용](#mvc-패턴-적용)
   - [MVC 패턴 한계](#mvc-패턴-한계)
-- [프론트 컨트롤러 패턴]
+- [프론트 컨트롤러 패턴](#프론트-컨트롤러-패턴)
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 1편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1/dashboard
 
