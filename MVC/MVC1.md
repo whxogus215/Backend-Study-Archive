@@ -391,3 +391,58 @@ MVC 컨트롤러를 통해 여러 계층을 분리할 수 있다. 하지만 컨�
 
 스프링 웹 MVC의 핵심인 `DispatcherServlet`도 이 프론트 컨트롤러 패턴으로 구현되어 있다. 따라서 프론트 컨트롤러가 무엇인지
 이해한다면 스프링 MVC의 여러 기능들을 보다 쉽게 이해할 수 있을 것이다.
+
+### 프론트 컨트롤러 도입 - v1
+[그림 프론트 컨트롤러 V1 구조]
+이처럼 프론트 컨트롤러를 통해 먼저 요청을 받은 후, 각 URI의 매핑정보가 담겨있는 Map을 통해 컨트롤러 객체를 가져온다.
+그 다음 해당 컨트롤러의 메서드를 호출하여 기존에 있는 JSP를 활용하여 응답한다.
+
+이 때, 프론트 컨트롤러는 **HttpServlet**이어야 하며, URI별 컨트롤러는 하나의 **인터페이스**를 통해 구현된다.
+즉, 인터페이스의 다형성을 활용하면 하나의 인터페이스 타입으로 여러 컨트롤러를 호출할 수 있기 때문이다.
+
+```java
+public interface ControllerV1 {
+ void process(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException;
+}
+```
+```java
+public class MemberFormControllerV1 implements ControllerV1 {
+ @Override
+ public void process(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+   String viewPath = "/WEB-INF/views/new-form.jsp";
+   RequestDispatcher dispatcher = request.getRequestDispatcher(viewPath);
+   dispatcher.forward(request, response);
+ }
+}
+```
+각각의 컨트롤러는 이 인터페이스를 구현하면 된다. 즉, 컨트롤러의 핵심 로직은 인터페이스의 메서드인 `process()`에 들어간다.
+이 안에는 기존에 구현했던 로직이 그대로 들어간다. (변경 없음)
+
+```java
+@WebServlet(name = "frontControllerServletV1", urlPatterns = "/frontcontroller/v1/*")
+public class FrontControllerServletV1 extends HttpServlet {
+ private Map<String, ControllerV1> controllerMap = new HashMap<>();
+ public FrontControllerServletV1() {
+    controllerMap.put("/front-controller/v1/members/new-form", new MemberFormControllerV1());
+    controllerMap.put("/front-controller/v1/members/save", new MemberSaveControllerV1());
+    controllerMap.put("/front-controller/v1/members", new MemberListControllerV1());
+ }
+ 
+ @Override
+ protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+   System.out.println("FrontControllerServletV1.service");
+   String requestURI = request.getRequestURI();
+   ControllerV1 controller = controllerMap.get(requestURI);
+    if (controller == null) {
+        response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+        return;
+    }
+    controller.process(request, response);
+    }
+}
+```
+- `urlPatterns = "/front-controller/v1/*`라고 하게 되면, /front-controller/v1/를 포함한 모든 URI는 다 이 서블릿으로 받겠다는 뜻이다.
+- 이 프론트 컨트롤러에는 URI 별로 컨트롤러를 매핑하는 HashMap이 존재하며, HttpServlet이기 때문에 Http의 요청과 응답을 처리할 수 있다.
+  - 따라서 요청 URI를 가져와 매핑하고 일치하는 컨트롤러 객체를 반환하여 컨트롤러의 메서드를 호출한다. (`service()`)
+- JSP의 경우 기존에 사용했던 것을 변경하지 않고 그대로 사용한다. (JSP의 action 부분에서 상대경로를 유지해야 한다.)
+  - `action = "save"`로 하게 되면, **현재 URI가 속한 계층 경로** + save로 넘어가게 된다. (상대경로 필요성) 
