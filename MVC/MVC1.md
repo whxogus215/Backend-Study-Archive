@@ -10,7 +10,7 @@
   - [MVC 패턴 한계](#mvc-패턴-한계)
 - [프론트 컨트롤러 패턴](#프론트-컨트롤러-패턴)
   - [프론트 컨트롤러 도입 - v1](#프론트-컨트롤러-도입---v1)
-  - [View 분리](#view-분리---v2)
+  - [View 분리 - v2](#view-분리---v2)
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 1편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1/dashboard
 
@@ -450,7 +450,7 @@ public class FrontControllerServletV1 extends HttpServlet {
   - `action = "save"`로 하게 되면, **현재 URI가 속한 계층 경로** + save로 넘어가게 된다. (상대경로 필요성)
 
 ### View 분리 - v2
-[그림 V2 구조]
+![V2 구조](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/03b53073-fe7b-459a-a70c-b074dae826b5)
 v1에서는 각각의 컨트롤러 마다 View 영역을 처리하는 로직이 중복된다. 따라서 View에서 처리하는 렌더링 부분을 따로 `MyView`라는 객체에 담는다.
 그러면 컨트롤러의 중복되는 코드가 줄어들어 훨씬 간편해진다.
 ```java
