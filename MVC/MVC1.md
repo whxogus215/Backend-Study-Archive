@@ -10,7 +10,7 @@
   - [MVC 패턴 한계](#mvc-패턴-한계)
 - [프론트 컨트롤러 패턴](#프론트-컨트롤러-패턴)
   - [프론트 컨트롤러 도입 - v1](#프론트-컨트롤러-도입---v1)
-  - [프론트 컨트롤러 도입 - v1](#프론트-컨트롤러-도입---v1)
+  - [View 분리](#view-분리---v2)
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 1편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1/dashboard
 
@@ -469,4 +469,5 @@ public class MemberFormControllerV2 implements ControllerV2 {
 새로운 컨트롤러 인터페이스는 MyView 객체를 반환한다. 그리고 구현된 컨트롤러는 마찬가지로 MyView 객체를 생성해서 반환한다.
 즉, 렌더링에 관련된 부분을 MyView가 처리하도록 하는 것이다. `getRequestDispatcher()`,`forward()` 메서드 부분은 MyView 객체에게 있기 때문에
 컨트롤러가 처리하는 부분이 훨씬 간단해진다.
-> Dispatcher 객체와 forward 메서드의 경우, 다른 서블릿 혹은 JSP로 이동할 수 있는 기능이다. 서버 내부에서 호출되는 것. 즉, 해당 JSP가 있는 경로로 이동하여 response에 JSP를 담아 응답하도록 하는 것이다.
+> Dispatcher 객체와 forward 메서드의 경우, 다른 서블릿 혹은 JSP로 이동할 수 있는 기능이다. 서버 내부에서 호출되는 것. 즉, 해당 JSP가 있는 경로로 이동하여 response에 JSP를 담아 응답하도록 하는 것이다.  
+> forward() : Includes the content of a resource (servlet, JSP page, HTML file) in the response. -> Response 객체에 JSP 파일을 담는 것임을 알 수 있다.(공식 API 설명)
