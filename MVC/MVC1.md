@@ -11,6 +11,7 @@
 - [프론트 컨트롤러 패턴](#프론트-컨트롤러-패턴)
   - [프론트 컨트롤러 도입 - v1](#프론트-컨트롤러-도입---v1)
   - [View 분리 - v2](#view-분리---v2)
+  - [Model 추가 - v3](#model-추가---v3)
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 1편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1/dashboard
 
@@ -471,3 +472,143 @@ public class MemberFormControllerV2 implements ControllerV2 {
 컨트롤러가 처리하는 부분이 훨씬 간단해진다.
 > Dispatcher 객체와 forward 메서드의 경우, 다른 서블릿 혹은 JSP로 이동할 수 있는 기능이다. 서버 내부에서 호출되는 것. 즉, 해당 JSP가 있는 경로로 이동하여 response에 JSP를 담아 응답하도록 하는 것이다.  
 > forward() : Includes the content of a resource (servlet, JSP page, HTML file) in the response. -> Response 객체에 JSP 파일을 담는 것임을 알 수 있다.(공식 API 설명)
+
+### Model 추가 - v3
+컨트롤러 v2 버전에는 두 가지 문제점이 있었다. **첫 번째**는 구현된 컨트롤러(프론트 컨트롤러 X)가 Http 서블릿을 몰라도 되는데 요청 파라미터로 받고 있다.
+**두 번째**는 구현된 컨트롤러에 JSP 즉, View 이름(리소스 위치)이 중복돼서 써지고 있다는 것이다. 이렇게 하면, View의 폴더 위치가 변경되어도
+구현 컨트롤러에 들어가서 하나하나 수정하는게 아니라 **프론트 컨트롤러의 코드만 바꿔주면 된다.**
+
+따라서 Model을 추가하여, 컨트롤러가 Model의 파라미터 정보를 사용하게끔 하고, Model에게 논리적 이름을 전달하여
+프론트 컨트롤러 측에서 물리적 이름으로 변환하도록 한다. 이렇게 하면 코드도 훨씬 간단해지며, 중복되는 부분도 많이 줄기 때문에
+테스트 코드 작성이 쉬워진다.
+
+논리적 이름 : `new-form` -> 물리적 이름 : `/WEB-INF/views/new-form.jsp`
+
+[그림 v3 구조]
+교안에서는 ModelView가 Model 역할을 하며, 추가로 View 이름까지 전달하기 때문에 ModelView라고 설정하였다.
+ModelView의 멤버로는 논리적 이름을 저장하는 `viewName`과 Request 요청 정보를 담는 `HashMap`을 갖고 있다.
+즉, 컨트롤러가 실제 접근하는 데이터는 여기에 있다.(Request 객체 아님)
+```java
+public class ModelView {
+   private String viewName;
+   private Map<String, Object> model = new HashMap<>();
+   
+   public ModelView(String viewName) {
+    this.viewName = viewName;
+   }
+   public String getViewName() {
+       return viewName;
+   }
+   public void setViewName(String viewName) {
+    this.viewName = viewName;
+   }
+   public Map<String, Object> getModel() {
+    return model;
+   }
+   public void setModel(Map<String, Object> model) {
+    this.model = model;
+ }
+}
+```
+```java
+public interface ControllerV3 {
+    ModelView process(Map<String, String> paramMap);
+}
+```
+컨트롤러 v3는 서블릿 기술을 전혀 사용하지 않는다. 따라서 컨트롤러가 구현하는 메서드도 전혀 서블릿을 몰라도 된다.
+기존에 사용하던 Model인 Request 객체 대신 프론트 컨트롤러에게 요청 파라미터를 Map 형태로 전달받는다. 그러면 컨트롤러는
+이 값들을 활용하여 ModelView 객체를 생성하여 다시 반환하는 것이다.
+
+```java
+public class MemberSaveControllerV3 implements ControllerV3 {
+ private MemberRepository memberRepository = MemberRepository.getInstance();
+ @Override
+ public ModelView process(Map<String, String> paramMap) {
+   // 전달받은 매개변수인 paraMap에는 Http 요청 정보가 들어있다.
+    String username = paramMap.get("username");
+    int age = Integer.parseInt(paramMap.get("age"));
+    
+   // 클라이언트가 입력한 값을 실제 Member로 생성하여 저장소에 저장
+    Member member = new Member(username, age);
+    memberRepository.save(member);
+
+   // 서비스 로직이 끝났고, 이제 View 영역으로 넘길 차례 -> JSP 뿌려줘야할 때
+    ModelView mv = new ModelView("save-result");
+   // ModelView에 논리적 이름을 저장하고, 추가로 뷰에서 필요한 데이터를 담는다.(저장소에 새로 저장한 member에 대한 데이터)
+    mv.getModel().put("member", member);
+    
+    return mv;
+ }
+}
+```
+- 컨트롤러가 하는 일
+  - 프론트 컨트롤러에게 받은 요청 정보 Map에서 값을 가져와 Member를 생성하여 저장소에 저장하는 로직을 수행한다.(Save 컨트롤러의 예시)
+  - 데이터를 전달하는 ModelView를 생성한다. 이 때, ModelView에 논리적 이름을 부여한다.
+  - View 영역에서 렌더링 작업에 필요한 정보들을 ModelView(Model)에 담아서 반환한다.
+    - 즉, 계층끼리 서로 주고 받는 것이 Request 객체가 아닌 Model이다!
+
+```java
+public class FrontControllerServletV3 extends HttpServlet {
+ private Map<String, ControllerV3> controllerMap = new HashMap<>();
+ 
+ @Override
+ protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+   // 구현 컨트롤러에게 전달할 요청 정보(Map) -> Request 객체에 있는 내용을 꺼내서 Map 형태로 생성하는 메서드로 분리
+     Map<String, String> paramMap = createParamMap(request);
+     // 구현된 컨트롤러에게 받은 Model
+     ModelView mv = controller.process(paramMap);
+     
+     // 논리적 이름을 가져와 물리적 이름으로 변환
+     String viewName = mv.getViewName();
+     MyView view = viewResolver(viewName);
+     
+     // 실제 View 영역인 MyView에게 필요한 렌더링 정보(ModelView 객체에 있는 Map)를 담아서 요청 
+     view.render(mv.getModel(), request, response);
+   }
+   
+ private Map<String, String> createParamMap(HttpServletRequest request) {
+    Map<String, String> paramMap = new HashMap<>();
+    // Request 객체에 있는 내용을 꺼내서 Map 형태로 생성하는 메서드로 분리
+    // Request 객체에 있는 Key 값을 꺼내서 이에 해당하는 Value와 함께 Map에 저장
+    request.getParameterNames().asIterator()
+                .forEachRemaining(paramName -> paramMap.put(paramName,
+    request.getParameter(paramName)));
+    
+    return paramMap;
+ }
+ // 논리적 이름을 전달받아 물리적 이름으로 변환하는 메서드 - View Resolver
+ private MyView viewResolver(String viewName) {
+    return new MyView("/WEB-INF/views/" + viewName + ".jsp");
+ }
+}
+```
+구현 로직이 복잡하고 코드가 많은 경우에 하나의 메서드로 추출하도록 한다. `메서드 추출 단축키 : Ctrl + Alt + M`
+
+```java
+public class MyView {
+
+  public void render(Map<String, Object> model, HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    
+    // 전달받은 Map은 ModelView의 Map 저장소이다. 따라서 여기에 있는 값을 가져와서 Request 객체에 저장해야 한다.  
+    modelToRequestAttribute(model, request);
+    // 이전에 View 영역에서 하던 것과 동일하다. (수정 X)
+    RequestDispatcher dispatcher = request.getRequestDispatcher(viewPath);
+    dispatcher.forward(request, response);
+  }
+
+  private void modelToRequestAttribute(Map<String, Object> model, HttpServletRequest request) {
+     // ModelView의 Map 저장소의 Key, Value를 Request 객체에 저장한다. (람다식 사용)   
+     model.forEach((key, value) -> request.setAttribute(key, value));
+  }
+}
+```
+이전에는 Request 객체에 값을 저장해서 전달했지만 이제는 Model 객체를 통해 데이터를 주고 받기 때문에 별도로 Model 객체의 데이터 저장소인 Map을 추가로 전달한다.
+따라서 메서드를 오버로딩하여 내용을 추가해야 한다.
+
+오버로딩된 메서드에서 추가된 부분은 **ModelView의 Map 저장소에 담긴 내용을 그대로 Request 객체에 저장하는 것이다.**
+실제로 Request 객체에 값을 저장하여 데이터를 주고받지는 않았지만 최종적으로는 Request 객체에 값을 저장해야 한다.
+**JSP의 경우, request.getAttribute()로 데이터를 조회하기 때문이다.**
+> Request에 저장한 Key 값을 그대로 JSP에서 사용하여 값을 조회한다. 또한 그 객체에 있는 멤버에 접근하는 것도 실제 객체에 저장된 멤버 이름과 동일하게 사용한다. - members.jsp 참고
+
+내용이 많이 복잡해졌지만, 핵심은 Model을 사용하여 컨트롤러의 종속성을 낮추고, 중복되는 부분을 줄이게 된 것이다.
+또한 프론트 컨트롤러가 구현 컨트롤러에게 전달하는 파라미터가 Request 객체에서 Map으로 변경되었다.**(구현 컨트롤러는 Request 객체 즉, 서블릿을 몰라도 된다는 뜻)**
