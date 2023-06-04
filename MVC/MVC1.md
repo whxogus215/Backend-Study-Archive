@@ -396,7 +396,7 @@ MVC 컨트롤러를 통해 여러 계층을 분리할 수 있다. 하지만 컨�
 이해한다면 스프링 MVC의 여러 기능들을 보다 쉽게 이해할 수 있을 것이다.
 
 ### 프론트 컨트롤러 도입 - v1
-[그림 프론트 컨트롤러 V1 구조]
+![v1 구조](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/6b36f90d-e5fc-4686-9475-d28bdb4d9221)
 이처럼 프론트 컨트롤러를 통해 먼저 요청을 받은 후, 각 URI의 매핑정보가 담겨있는 Map을 통해 컨트롤러 객체를 가져온다.
 그 다음 해당 컨트롤러의 메서드를 호출하여 기존에 있는 JSP를 활용하여 응답한다.
 
@@ -484,7 +484,7 @@ public class MemberFormControllerV2 implements ControllerV2 {
 
 논리적 이름 : `new-form` -> 물리적 이름 : `/WEB-INF/views/new-form.jsp`
 
-[그림 v3 구조]
+![v3 구조](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/99061c8b-e12d-45da-bfcf-3dd237edaa25)
 교안에서는 ModelView가 Model 역할을 하며, 추가로 View 이름까지 전달하기 때문에 ModelView라고 설정하였다.
 ModelView의 멤버로는 논리적 이름을 저장하는 `viewName`과 Request 요청 정보를 담는 `HashMap`을 갖고 있다.
 즉, 컨트롤러가 실제 접근하는 데이터는 여기에 있다.(Request 객체 아님)
