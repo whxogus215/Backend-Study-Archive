@@ -707,11 +707,73 @@ public class ControllerV3HandlerAdapter implements MyHandlerAdapter {
 @WebServlet(name = "frontControllerServletV5", urlPatterns = "/front-controller/v5/*")
 public class FrontControllerServletV5 extends HttpServlet {
 
-    // 기존의 컨트롤러와 비교했을 때, 하나의 컨트롤러 타입이 들어가지 않고 Object 타입이 들어간다. -> 모든 컨트롤러 타입이 들어갈 수 있다는 뜻
-    private final Map<String, Object> handlerMappingMap = new HashMap<>();
-    
-    // 6월 7일 강의 수강 후, 내용 추가하기!
+  // 기존의 컨트롤러와 비교했을 때, 하나의 컨트롤러 타입이 들어가지 않고 Object 타입이 들어간다. -> 모든 컨트롤러 타입이 들어갈 수 있다는 뜻
+  private final Map<String, Object> handlerMappingMap = new HashMap<>();
+  private final List<MyHandlerAdapter> handlerAdapters = new ArrayList<>();
+
+  public FrontControllerServletV5() {
+    initHandlerMappingMap();
+
+    initHandlerAdapters();
+  }
+
+  private void initHandlerMappingMap() {
+    handlerMappingMap.put("/front-controller/v5/v3/members/new-form", new MemberFormControllerV3());
+    handlerMappingMap.put("/front-controller/v5/v3/members/save", new MemberSaveControllerV3());
+    handlerMappingMap.put("/front-controller/v5/v3/members", new MemberListControllerV3());
+  }
+
+  private void initHandlerAdapters() {
+    handlerAdapters.add(new ControllerV3HandlerAdapter());
+  }
+
+  @Override
+  protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    // 핸들러 찾기
+    Object handler = getHandler(request);
+    if (handler == null) {
+      response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+      return;
+    }
+    // 핸들러에 맞는 어댑터를 찾기
+    MyHandlerAdapter adapter = getHandlerAdapter(handler);
+
+    // 어댑터가 핸들러를 호출하여 ModelView 획득
+    ModelView mv = adapter.handle(request, response, handler);
+
+    // 이하 이전 버전 컨트롤러와 같은 로직
+    String viewName = mv.getViewName();
+    MyView view = viewResolver(viewName);
+
+    view.render(mv.getModel(), request, response);
+  }
+
+  private MyHandlerAdapter getHandlerAdapter(Object handler) {
+    for (MyHandlerAdapter adapter : handlerAdapters) {
+      if (adapter.supports(handler)) {
+        return adapter;
+      }
+    }
+    // 해당 핸들러를 지원하는 어댑터가 없을 경우 발생하는 예외
+    throw new IllegalArgumentException("handler adapter를 찾을 수 없습니다. handler = " + handler);
+  }
+
+  private Object getHandler(HttpServletRequest request) {
+    String requestURI = request.getRequestURI();
+    return handlerMappingMap.get(requestURI);
+  }
+
+  private MyView viewResolver(String viewName) {
+    MyView view = new MyView("/WEB-INF/views/" + viewName + ".jsp");
+    return view;
+  }
 }
 ```
 V5의 컨트롤러의 경우, 핸들러 매핑에 특정 컨트롤러 타입이 아닌 `Object` 타입이 들어간다. `Object`는 최상위 클래스이기 때문에 이를 사용하면
 보다 유연하게 넓은 범위의 타입이 수용 가능하다. **(아무 값이나 입력받을 수 있기 때문)**
+
+또한 각 핸들러에 맞는 어댑터를 찾을 수 있도록, 어댑터를 List에 담았다. 이렇게 하면 추후에 어댑터를 찾을 때, for문을 통해
+알맞는 어댑터를 찾게 된다. (앞서 작성한 `supports()`를 통해 검사)
+
+프론트 컨트롤러에서 수행하는 로직이 많기 때문에 이들을 하나의 메서드로 만들어서 관리하는 것이 더욱 편하고, 코드를 직관적으로 이해할 수 있다.
+
