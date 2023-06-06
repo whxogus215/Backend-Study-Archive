@@ -13,6 +13,7 @@
   - [View 분리 - v2](#view-분리---v2)
   - [Model 추가 - v3](#model-추가---v3)
   - [단순하고 실용적인 컨트롤러 - v4](#단순하고-실용적인-컨트롤러---v4)
+  - [유연한 컨트롤러1 - v5](#유연한-컨트롤러1---v5)
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 1편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1/dashboard
 
