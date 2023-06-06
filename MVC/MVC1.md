@@ -652,3 +652,65 @@ V4 버전의 구현 컨트롤러가 하는 것은 전달받은 model에 값을 �
 V1에서 V4까지의 과정을 보면 점진적으로 기능들이 추가되면서 발전한 형태임을 알 수 있다. 이처럼 모든 소프트웨어 개발 및 프레임워크는
 한번에 업그레이드 되지 않고, 조금씩 단점들을 보완하는 방향으로 발전한다. **프레임워크나 공통 기능이 수고로워야 사용하는 개발자가 편리해진다.**
 
+### 유연한 컨트롤러1 - v5
+우리는 일상생활 속에서 **어댑터**를 유용하게 사용하고 있다. 즉, 110V 콘센트에 220V 충전기를 사용하기 위해서는 이들을 연결시키고 변환하는
+어댑터를 사용한다. 소프트웨어 개발에서도 마찬가지로 어댑터 개념이 도입된 `어댑터 패턴`이 존재한다.
+
+먄약 누군가는 ControllerV3 방식을 사용해야 하고, 누군가는 ControllerV4 방식을 사용해야 한다면 컨트롤러를 어떻게 설계해야 할까?
+버전별 컨트롤러 인터페이스의 메서드 및 프론트 컨트롤러를 살펴보면, 특정 컨트롤러 버전에 종속되어 있음을 알 수 있다.(핸들러 매핑 등)
+
+각각의 버전에 맞는 어댑터를 사용함으로써 프론터 컨트롤러가 여러 버전의 컨트롤러(핸들러)를 처리할 수 있도록 작성하는 것이 V5 방식이다.
+[그림 v5 구조]
+컨트롤러라는 용어를 핸들러라는 더 큰 범위의 이름으로 확장하여 표현하였다. 어댑터를 사용하면 컨트롤러 뿐만 아니라 어댑터의 사양에 맞는
+모든 것들을 연결시킬 수 있기 때문이다.
+```java
+public interface MyHandlerAdapter {
+    boolean supports(Object handler);
+    ModelView handle(HttpServletRequest request, HttpServletResponse response, Object handler) throws ServletException, IOException;
+}
+```
+어댑터를 통해 들어오는 컨트롤러는 Object 타입이기 때문에 이들이 무엇을 구현하고 있는지(인터페이스 확인) 알아야 한다.
+또한 Object 타입을 형변환 시켜야 해당 컨트롤러(핸들러)를 사용할 수 있다. 이 때 사용하는 메서드가 `supports()와 handle()`이다.
+```java
+public class ControllerV3HandlerAdapter implements MyHandlerAdapter {
+
+    @Override
+    public boolean supports(Object handler) {
+        return (handler instanceof ControllerV3); // handler가 ControllerV3 타입인 경우에만 True가 반환
+    }
+
+    @Override
+    public ModelView handle(HttpServletRequest request, HttpServletResponse response, Object handler) throws ServletException, IOException {
+        ControllerV3 controller = (ControllerV3) handler;
+        
+        // 컨트롤러 V3의 경우, ModelView를 반환하기 때문에 ModelView를 생성해서 반환한다.
+        // 이처럼 컨트롤러의 버전에 맞게 구현해주면 된다.
+        Map<String, String> paramMap = createParamMap(request);
+        ModelView mv = controller.process(paramMap);
+
+        return mv;
+    }
+
+    // Http의 요청 정보를 하나의 Map에 저장하여 반환하는 메서드
+    private static Map<String, String> createParamMap(HttpServletRequest request) {
+        Map<String, String> paraMap = new HashMap<>();
+        request.getParameterNames().asIterator()
+                .forEachRemaining(paramName -> paraMap.put(paramName, request.getParameter(paramName)));
+        return paraMap;
+    }
+}
+```
+이미 구현된 컨트롤러를 그대로 사용하되, 이들은 단지 어댑터에서 호출되는 용도이다. 즉, 실제 로직이 수행되는 곳은
+핸들러 어댑터임을 알 수 있다.
+```java
+@WebServlet(name = "frontControllerServletV5", urlPatterns = "/front-controller/v5/*")
+public class FrontControllerServletV5 extends HttpServlet {
+
+    // 기존의 컨트롤러와 비교했을 때, 하나의 컨트롤러 타입이 들어가지 않고 Object 타입이 들어간다. -> 모든 컨트롤러 타입이 들어갈 수 있다는 뜻
+    private final Map<String, Object> handlerMappingMap = new HashMap<>();
+    
+    // 6월 7일 강의 수강 후, 내용 추가하기!
+}
+```
+V5의 컨트롤러의 경우, 핸들러 매핑에 특정 컨트롤러 타입이 아닌 `Object` 타입이 들어간다. `Object`는 최상위 클래스이기 때문에 이를 사용하면
+보다 유연하게 넓은 범위의 타입이 수용 가능하다. **(아무 값이나 입력받을 수 있기 때문)**
