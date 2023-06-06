@@ -12,6 +12,7 @@
   - [프론트 컨트롤러 도입 - v1](#프론트-컨트롤러-도입---v1)
   - [View 분리 - v2](#view-분리---v2)
   - [Model 추가 - v3](#model-추가---v3)
+  - [단순하고 실용적인 컨트롤러 - v4](#단순하고-실용적인-컨트롤러---v4)
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 1편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1/dashboard
 
@@ -612,3 +613,42 @@ public class MyView {
 
 내용이 많이 복잡해졌지만, 핵심은 Model을 사용하여 컨트롤러의 종속성을 낮추고, 중복되는 부분을 줄이게 된 것이다.
 또한 프론트 컨트롤러가 구현 컨트롤러에게 전달하는 파라미터가 Request 객체에서 Map으로 변경되었다.**(구현 컨트롤러는 Request 객체 즉, 서블릿을 몰라도 된다는 뜻)**
+
+### 단순하고 실용적인 컨트롤러 - v4
+v3는 서블릿의 종속성을 제거하고, 뷰 경로의 중복을 제거하는 등의 장점이 있었으나, ModelView를 항상 생성해서
+반환하는 작업이 개발자에게 있어서는 번거로울 수 있다. **좋은 프레임워크는 무엇보다 개발자가 단순하고 편리하게
+사용할 수 있어야 한다.(실용성이 좋다는 뜻)**
+[그림 v4 구조]
+```java
+public interface ControllerV4 {
+ /**
+ * @param paramMap
+ * @param model
+ * @return viewName
+ */
+ String process(Map<String, String> paramMap, Map<String, Object> model);
+}
+```
+컨트롤러 V4는 ModelView를 반환하지 않고 논리적 이름만 반환한다.
+```java
+public class MemberSaveControllerV4 implements ControllerV4 {
+ private MemberRepository memberRepository = MemberRepository.getInstance();
+ @Override
+ public String process(Map<String, String> paramMap, Map<String, Object> model) {
+   String username = paramMap.get("username");
+   int age = Integer.parseInt(paramMap.get("age"));
+   Member member = new Member(username, age);
+   
+   memberRepository.save(member);
+   model.put("member", member);
+   
+   return "save-result";
+ }
+}
+```
+V4 버전의 구현 컨트롤러가 하는 것은 전달받은 model에 값을 넣고, 논리적 이름만 반환한다. **즉, 모델이 파라미터로
+전달되기 때문에 직접 모델을 생성하지 않아도 된다.**
+
+V1에서 V4까지의 과정을 보면 점진적으로 기능들이 추가되면서 발전한 형태임을 알 수 있다. 이처럼 모든 소프트웨어 개발 및 프레임워크는
+한번에 업그레이드 되지 않고, 조금씩 단점들을 보완하는 방향으로 발전한다. **프레임워크나 공통 기능이 수고로워야 사용하는 개발자가 편리해진다.**
+
