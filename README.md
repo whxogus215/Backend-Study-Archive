@@ -2,7 +2,7 @@
 
 ## 목차
 
-1. [개발자를 위한 HTTP 지식](/Http/README.md)
+1. [개발자를 위한 HTTP 지식](/Http/HTTP.md)
 2. [스프링 MVC 1편](/MVC/MVC1.md)
 
 ---
