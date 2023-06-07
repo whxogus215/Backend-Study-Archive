@@ -14,6 +14,7 @@
   - [Model 추가 - v3](#model-추가---v3)
   - [단순하고 실용적인 컨트롤러 - v4](#단순하고-실용적인-컨트롤러---v4)
   - [유연한 컨트롤러1 - v5](#유연한-컨트롤러1---v5)
+  - [유연한 컨트롤러2 - v5](#유연한-컨트롤러2---v5)
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 1편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1/dashboard
 
@@ -777,3 +778,64 @@ V5의 컨트롤러의 경우, 핸들러 매핑에 특정 컨트롤러 타입이 
 
 프론트 컨트롤러에서 수행하는 로직이 많기 때문에 이들을 하나의 메서드로 만들어서 관리하는 것이 더욱 편하고, 코드를 직관적으로 이해할 수 있다.
 
+### 유연한 컨트롤러2 - v5
+프론트 컨트롤러에 v4 버전을 추가함으로써, **프론트 컨트롤러를 거의 손대지 않고, 기능을 확장함을 알 수 있다.**
+이것이 인터페이스가 필요한 이유이며, 실제 스프링 MVC도 다양한 인터페이스로 구성되어 있다.
+```java
+private void initHandlerMappingMap() {
+        handlerMappingMap.put("/front-controller/v5/v3/members/new-form", new MemberFormControllerV3());
+        handlerMappingMap.put("/front-controller/v5/v3/members/save", new MemberSaveControllerV3());
+        handlerMappingMap.put("/front-controller/v5/v3/members", new MemberListControllerV3());
+
+        // v4 추가
+        handlerMappingMap.put("/front-controller/v5/v4/members/new-form", new MemberFormControllerV4());
+        handlerMappingMap.put("/front-controller/v5/v4/members/save", new MemberSaveControllerV4());
+        handlerMappingMap.put("/front-controller/v5/v4/members", new MemberListControllerV4());
+    }
+
+private void initHandlerAdapters() {
+        handlerAdapters.add(new ControllerV3HandlerAdapter());
+        handlerAdapters.add(new ControllerV4HandlerAdapter());
+    }
+```
+- 프론트 컨트롤러에서 추가된 부분이다. 어댑터 항목 및 URI에 맞는 컨트롤러 매핑 부분
+```java
+public class ControllerV4HandlerAdapter implements MyHandlerAdapter {
+    @Override
+    public boolean supports(Object handler) {
+        return (handler instanceof ControllerV4);
+    }
+
+    @Override
+    public ModelView handle(HttpServletRequest request, HttpServletResponse response, Object handler) throws ServletException, IOException {
+        ControllerV4 controller = (ControllerV4) handler;
+
+        // 기존에 프론트 컨트롤러가 하던 파라미터 생성을 어댑터가 대신한다. -> 어댑터는 해당 컨트롤러가 필요한 매개변수에 밪춰서 메서드를 호출한다.
+        Map<String, String> paramMap = createParamMap(request);
+        HashMap<String, Object> model = new HashMap<>();
+
+        // V4 컨트롤러에 의해 model에 필요한 데이터가 담긴다.
+        String viewName = controller.process(paramMap, model);
+
+        // 반환타입이 ModelView이기 때문에 ModelView를 생성해서 반환한다. (어댑터의 역할! - 110V를 220V로 바꾸는 어댑터 기능)
+        ModelView mv = new ModelView(viewName);
+        mv.setModel(model);
+
+        return mv;
+    }
+
+    private static Map<String, String> createParamMap(HttpServletRequest request) {
+        Map<String, String> paraMap = new HashMap<>();
+        request.getParameterNames().asIterator()
+                .forEachRemaining(paramName -> paraMap.put(paramName, request.getParameter(paramName)));
+        return paraMap;
+    }
+}
+```
+- 단순히 프론트 컨트롤러는 어댑터를 호출하여 원하는 반환타입인 ModelView를 얻는다. 즉, 구체적인 로직은 어댑터의 몫이다. 왜냐하면
+프론트 컨트롤러와 컨트롤러의 타입이 안 맞을 수 있고, 그 둘을 연결하는 객체가 어댑터이기 때문이다. 따라서 그 둘을 호환하는 작업(110V를 220V로 바꾸는 작업)을 하는 것이 어댑터이다.
+- 위 예시에도 어댑터를 도입하기 전 버전인 컨트롤러에서 직접 하던 ModelView 객체 생성을 어댑터가 대신하고 있다.
+  - ControllerV4는 `String`을 반환하고, 프론트 컨트롤러는 `ModelViewe`를 처리해야 한다. 즉, 둘의 반환타입이 다르며,
+  **이 둘을 호환해주는 것이 바로 어댑터의 역할이다. (110V -> 220V)**
+
+지금까지 MVC 구조를 직접 만들어보면서 **다형성과 어댑터**를 통해 **기존의 구조를 유지하면서, 기능을 확장시키는 방법을 배웠다.**
