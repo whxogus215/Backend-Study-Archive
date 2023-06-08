@@ -846,6 +846,7 @@ public class ControllerV4HandlerAdapter implements MyHandlerAdapter {
 ### 스프링 MVC 전체 구조
 ![직접 만든 MVC](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/9d2f0dfa-ac45-4b11-8408-2ec93266c7ac)
 ![스프링 MVC](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/a8670dfa-530c-44bb-b618-eea01efc98c5)
+
 직접 만들었던 MVC 구조와 실제 스프링에서 구현된 MVC 구조와 거의 일치한다.
 
 스프링 MVC에서 제일 중요한 `DispatcherServlet`은 스프링의 **프론트 컨트롤러**이다. DispatcherServlet도 상위에
