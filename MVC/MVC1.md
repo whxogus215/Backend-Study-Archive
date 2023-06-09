@@ -908,7 +908,8 @@ public class OldController implements Controller {
 - 또한 찾은 핸들러 매핑을 통해서 핸들러를 찾으면 그것을 실행할 **핸들러 어댑터**가 필요하다.
 
 실제 개발자가 핸들러 매핑과 핸들러 어댑터를 구현할 일은 없다. 이미 스프링에서 잘 구현되어 있기 때문이다.
-[그림 스프링 핸들러 매핑]
+![스프링 핸들러 매핑](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/3be523df-b199-43e3-9d94-34dfc67d17a0)
+
 위의 경우, 사용자가 지정한 스프링 빈 이름을 갖는 핸들러가 있기 때문에 핸들러 매핑으로 `BeanNameUrlHandlerMapping`이 실행되어, `OldController`를 반환한다.
 
 어댑터의 경우, `SimpleControllerHandlerAdapter`가 실행되어, Controller 인터페이스를 지원한다. 그러면 `DispatcherServlet`이 이 핸들러 어댑터를 실행하게 되고,
