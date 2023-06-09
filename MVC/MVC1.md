@@ -17,6 +17,7 @@
   - [유연한 컨트롤러2 - v5](#유연한-컨트롤러2---v5)
 - [스프링 MVC 구조](#스프링-mvc---구조)
   - [스프링 MVC 전체 구조](#스프링-mvc-전체-구조)
+  - [핸들러 매핑과 핸들러 어댑터](#핸들러-매핑과-핸들러-어댑터)
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 1편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1/dashboard
 
@@ -889,3 +890,30 @@ protected void render(ModelAndView mv, HttpServletRequest request,HttpServletRes
 ```
 이는 `DispatcherServlet`에서 핵심 로직인 `doDispatch()` 코드의 일부이다. 기존에 구현했던 프론트 컨트롤러의 `service()`와 거의 비슷하게 동작하고 있음을
 알 수 있다.
+
+### 핸들러 매핑과 핸들러 어댑터
+과거에는 컨트롤러를 구현할 때 어노테이션 방식이 아닌 인터페이스를 사용하였다.
+```java
+@Component("/springmvc/old-controller")
+public class OldController implements Controller {
+    @Override
+    public ModelAndView handleRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
+        System.out.println("OldController.handleRequest");
+        return null;
+    }
+}
+```
+- `@Component`를 통해 해당 스프링 빈의 이름을 등록하였으며, 이 URL에 접속했을 때 이 컨트롤러와 매핑된다.
+- 이 컨트롤러가 호출되기 위해선 스프링 빈의 이름과 맞는 핸들러를 찾는 **핸들러 매핑**이 필요하다.
+- 또한 찾은 핸들러 매핑을 통해서 핸들러를 찾으면 그것을 실행할 **핸들러 어댑터**가 필요하다.
+
+실제 개발자가 핸들러 매핑과 핸들러 어댑터를 구현할 일은 없다. 이미 스프링에서 잘 구현되어 있기 때문이다.
+[그림 스프링 핸들러 매핑]
+위의 경우, 사용자가 지정한 스프링 빈 이름을 갖는 핸들러가 있기 때문에 핸들러 매핑으로 `BeanNameUrlHandlerMapping`이 실행되어, `OldController`를 반환한다.
+
+어댑터의 경우, `SimpleControllerHandlerAdapter`가 실행되어, Controller 인터페이스를 지원한다. 그러면 `DispatcherServlet`이 이 핸들러 어댑터를 실행하게 되고,
+핸들러 어댑터는 전달받은 정보를 가지고 핸들러인 `OldController`를 내부에서 실행하여 결과만 반환한다.
+
+실무에서는 거의 어노테이션 기반인 `@RequestMapping`을 사용한다. 여기에 사용되는 핸들러 매핑은 `RequestMappingHandlerMapping`, 핸들러 어댑터는
+`RequestMappingHandlerAdapter`이다. 이들은 어노테이션 기반으로 작성한 컨트롤러(핸들러)를 지원하는 핸들러 매핑 및 어댑터이다.
+
