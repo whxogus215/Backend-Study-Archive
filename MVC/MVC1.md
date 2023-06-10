@@ -18,6 +18,7 @@
 - [스프링 MVC 구조](#스프링-mvc---구조)
   - [스프링 MVC 전체 구조](#스프링-mvc-전체-구조)
   - [핸들러 매핑과 핸들러 어댑터](#핸들러-매핑과-핸들러-어댑터)
+  - [뷰 리졸버](#뷰-리졸버)
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 1편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1/dashboard
 
@@ -918,3 +919,35 @@ public class OldController implements Controller {
 실무에서는 거의 어노테이션 기반인 `@RequestMapping`을 사용한다. 여기에 사용되는 핸들러 매핑은 `RequestMappingHandlerMapping`, 핸들러 어댑터는
 `RequestMappingHandlerAdapter`이다. 이들은 어노테이션 기반으로 작성한 컨트롤러(핸들러)를 지원하는 핸들러 매핑 및 어댑터이다.
 
+### 뷰 리졸버
+```java
+@Component("/springmvc/old-controller")
+public class OldController implements Controller {
+ @Override
+ public ModelAndView handleRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
+   System.out.println("OldController.handleRequest");
+   return new ModelAndView("new-form");
+ }
+}
+```
+ModelAndView라는 객체를 반환하는데 이 때 논리적 이름을 부여한다. 그러면 스프링에서 이 이름을 갖는 파일이 어디에 있는 것인지를
+지정해줘야 한다.
+
+```java
+        // application.properties
+
+        spring.mvc.view.prefix=/WEB-INF/views/
+        spring.mvc.view.suffix=.jsp
+```
+즉, 논리적 이름 앞에 `/WEB-INF/views` 뒤에 `.jsp` 가 붙는 것이다. 뷰 리졸버 객체인 `InternalResourceViewResolver`가 스프링 부트를 통해 자동으로 등록된다.
+이 때 앞서 properties에서 설정한 정보들을 가져와서 객체를 생성하게 된다.(application.properties를 작성하는 이유)
+
+[그림 뷰 리졸버]
+[그림 스프링 부트 뷰 리졸버]
+
+이처럼 뷰 리졸버는 전달받은 데이터를 통해 적절한 뷰 리졸버 객체를 반환한다. 그러면 프론트 컨트롤러인 `DispatcherServlet`은 전달받은 View 객체의 메서드인 `render()`를 실행하여
+View를 처리한다. (JSP의 경우, `forward()`를 통해 해당 JSP로 이동한 뒤 렌더링이 된다. 이를 제외한 나머지 뷰 템플릿들은
+바로 자바 코드를 통해 렌더링이 가능하다.)
+
+Thymeleaf를 사용할 경우, 뷰 리졸버 객체로 `TymeleafViewResolver`가 등록된다. 이 또한 스프링 부트가 자동으로 해준다.
+사용하는 뷰 템플릿에 따라 쓰이는 뷰 리졸버 객체도 달라짐을 알 수 있다.
