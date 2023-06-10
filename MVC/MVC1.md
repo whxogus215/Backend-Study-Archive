@@ -942,8 +942,8 @@ ModelAndView라는 객체를 반환하는데 이 때 논리적 이름을 부여�
 즉, 논리적 이름 앞에 `/WEB-INF/views` 뒤에 `.jsp` 가 붙는 것이다. 뷰 리졸버 객체인 `InternalResourceViewResolver`가 스프링 부트를 통해 자동으로 등록된다.
 이 때 앞서 properties에서 설정한 정보들을 가져와서 객체를 생성하게 된다.(application.properties를 작성하는 이유)
 
-[그림 뷰 리졸버]
-[그림 스프링 부트 뷰 리졸버]
+![뷰 리졸버](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/b31dad89-d463-42f5-b205-238ccb9529cc)
+![스프링 부트 뷰 리졸버](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/6bdd07e3-cd4f-4bf7-9d3f-435204137d21)
 
 이처럼 뷰 리졸버는 전달받은 데이터를 통해 적절한 뷰 리졸버 객체를 반환한다. 그러면 프론트 컨트롤러인 `DispatcherServlet`은 전달받은 View 객체의 메서드인 `render()`를 실행하여
 View를 처리한다. (JSP의 경우, `forward()`를 통해 해당 JSP로 이동한 뒤 렌더링이 된다. 이를 제외한 나머지 뷰 템플릿들은
