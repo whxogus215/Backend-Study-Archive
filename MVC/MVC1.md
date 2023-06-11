@@ -19,6 +19,7 @@
   - [스프링 MVC 전체 구조](#스프링-mvc-전체-구조)
   - [핸들러 매핑과 핸들러 어댑터](#핸들러-매핑과-핸들러-어댑터)
   - [뷰 리졸버](#뷰-리졸버)
+  - [스프링 MVC 시작하기](#스프링-mvc-시작하기)
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 1편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1/dashboard
 
@@ -951,3 +952,23 @@ View를 처리한다. (JSP의 경우, `forward()`를 통해 해당 JSP로 이동
 
 Thymeleaf를 사용할 경우, 뷰 리졸버 객체로 `TymeleafViewResolver`가 등록된다. 이 또한 스프링 부트가 자동으로 해준다.
 사용하는 뷰 템플릿에 따라 쓰이는 뷰 리졸버 객체도 달라짐을 알 수 있다.
+
+### 스프링 MVC 시작하기
+```java
+@Controller
+public class SpringMemberFormControllerV1 {
+ @RequestMapping("/springmvc/v1/members/new-form")
+ public ModelAndView process() {
+    return new ModelAndView("new-form");
+ }
+}
+```
+이제는 해당 컨트롤러에 애노테이션 기반으로 작성을 하면 스프링이 알아서 인식을 한다.  
+`@Controller`의 경우, 스프링 빈이 자동으로 스프링 빈으로 등록하며, `RequestMappingHandelrMapping`의 **핸들러 대상이 된다.**  
+`@RequestMapping`의 경우, 안에 작성된 URL이 호출되면 이 어노테이션을 사용한 메서드를 호출한다.
+
+> 스프링 부트 3.0 이상부터는 스프링 컨트롤러로 인식되기 위해서는 반드시 `@Controller`만을 사용해야 한다고 한다.
+
+다른 로직들도 마찬가지로 기존의 코드들을 그대로 가져오되, 반환 타입만 커스텀 객체인 `ModelView` 대신 스프링에서 구현한 `ModelAndView`를 사용한다.
+핵심은 어노테이션을 통해 스프링이 자동으로 처리할 수 있는 객체들을 지정하는 것이다. 이미 MVC에 대한 구조는 스프링에서 다 짜여있으며, 개발자는 그저
+그것의 전체적인 구조를 파악하고, 사양에 맞게 어노테이션을 붙여서 만들기만하면 되는 것이다.
