@@ -20,6 +20,7 @@
   - [핸들러 매핑과 핸들러 어댑터](#핸들러-매핑과-핸들러-어댑터)
   - [뷰 리졸버](#뷰-리졸버)
   - [스프링 MVC 시작하기](#스프링-mvc-시작하기)
+  - [스프링 MVC 컨트롤러 통합](#스프링-mvc-컨트롤러-통합)
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 1편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1/dashboard
 
@@ -972,3 +973,51 @@ public class SpringMemberFormControllerV1 {
 다른 로직들도 마찬가지로 기존의 코드들을 그대로 가져오되, 반환 타입만 커스텀 객체인 `ModelView` 대신 스프링에서 구현한 `ModelAndView`를 사용한다.
 핵심은 어노테이션을 통해 스프링이 자동으로 처리할 수 있는 객체들을 지정하는 것이다. 이미 MVC에 대한 구조는 스프링에서 다 짜여있으며, 개발자는 그저
 그것의 전체적인 구조를 파악하고, 사양에 맞게 어노테이션을 붙여서 만들기만하면 되는 것이다.
+
+### 스프링 MVC 컨트롤러 통합
+지금까지 작성한 스프링 MVC 컨트롤러의 경우, 각 URL마다 메서드에 `@RequestMapping`이 붙어 있었다. (메서드 단위에 적용됨)
+따라서 이들 메서드를 하나의 컨트롤러로 통합한다면 여러 컨트롤러를 사용하지 않아도 된다.
+
+```java
+@Controller
+@RequestMapping("/springmvc/v2/members") // 각 메서드에 공통되는 URL을 뽑아냄
+public class SpringMemberControllerV2 {
+
+    private MemberRepository memberRepository = MemberRepository.getInstance();
+
+    @RequestMapping("/new-form")
+    public ModelAndView newForm() {
+        return new ModelAndView("new-form");
+    }
+
+    // @RequestMapping("/members/") -> /springmvc/v2/members/members로 매핑된다. 따라서 이 URL의 경우, 아무것도 붙이지 않는다. 그래야 /springmvc/v2/members로 매핑된다.
+    @RequestMapping
+    public ModelAndView members() {
+        List<Member> members = memberRepository.findAll();
+        ModelAndView mv = new ModelAndView("members");
+        mv.addObject("members", members);
+
+        return mv;
+    }
+
+    @RequestMapping("/save")
+    public ModelAndView save(HttpServletRequest request, HttpServletResponse response) {
+        String username = request.getParameter("username");
+        int age = Integer.parseInt(request.getParameter("age"));
+
+        Member member = new Member(username, age);
+        memberRepository.save(member);
+
+        ModelAndView mv = new ModelAndView("save-result");
+        mv.addObject("member", member);
+        return mv;
+    }
+}
+```
+또한 클래스 레벨에 작성한 `@RequestMapping`과 메서드 레벨에서 작성한 `@RequestMapping`을 조합하면 메서드의 `@RequestMapping`에 작성하는
+URL의 중복을 줄일 수 있다.  
+- 클래스 레벨 `@RequestMapping("/springmvc/v2/members")`
+  - 메서드 레벨 `@RequestMapping("/new-form") /springmvc/v2/members/new-form`
+  - 메서드 레벨 `@RequestMapping("/save") /springmvc/v2/members/save`
+  - 메서드 레벨 `@RequestMapping(") /springmvc/v2/members`
+    - 메서드 레벨에 `/members`를 작성할 경우, 클래스 레벨에 있는 members와 겹치기 때문에 메서드 레벨의 URL은 비워둔다.
