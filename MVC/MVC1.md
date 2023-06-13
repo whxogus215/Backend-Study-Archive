@@ -21,6 +21,7 @@
   - [뷰 리졸버](#뷰-리졸버)
   - [스프링 MVC 시작하기](#스프링-mvc-시작하기)
   - [스프링 MVC 컨트롤러 통합](#스프링-mvc-컨트롤러-통합)
+  - [스프링 MVC - 실용적인 방식](#스프링-mvc---실용적인-방식)
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 1편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1/dashboard
 
@@ -1021,3 +1022,64 @@ URL의 중복을 줄일 수 있다.
   - 메서드 레벨 `@RequestMapping("/save") /springmvc/v2/members/save`
   - 메서드 레벨 `@RequestMapping(") /springmvc/v2/members`
     - 메서드 레벨에 `/members`를 작성할 경우, 클래스 레벨에 있는 members와 겹치기 때문에 메서드 레벨의 URL은 비워둔다.
+
+### 스프링 MVC - 실용적인 방식
+지금까지는 컨트롤러가 직접 `ModelAndView` 객체를 생성해서 반환해야 했기 때문에 컨트롤러가 하는 일이 많았다.
+하지만 이제는 단순히 논리적인 이름만 반환하고, Model 또한 스프링에서 이미 구현한 Model을 그대로 사용하도록 한다.
+
+```java
+@Controller
+@RequestMapping("/springmvc/v3/members")
+public class SpringMemberControllerV3 {
+
+    private MemberRepository memberRepository = MemberRepository.getInstance();
+
+    // @RequestMapping을 통해 HTTP 메서드를 지정할 수 있다. "method = "
+//    @RequestMapping(value = "/new-form", method = RequestMethod.GET)
+    @GetMapping("/new-form")
+    public String newForm() {
+        return "new-form";
+    }
+
+//    @RequestMapping(method = RequestMethod.GET)
+    @GetMapping()
+    public String members(Model model) {
+        List<Member> members = memberRepository.findAll();
+
+        model.addAttribute("members", members);
+        return "members";
+    }
+
+//    @RequestMapping(value = "/save", method = RequestMethod.POST)
+    @PostMapping("/save")
+    public String save(@RequestParam("username") String username, @RequestParam("age") int age, Model model) {
+        
+        Member member = new Member(username, age);
+        memberRepository.save(member);
+        
+        // 스프링에서 제공하는 Model 사용
+        model.addAttribute("member", member);
+        return "save-result";
+    }
+}
+```
+이처럼 각 메서드들은 단순히 논리적 이름만 반환(String)하며, Model 또한 스프링에서 구현한 Model을 가져와서 사용한다.
+
+이 때, 파라미터로 `@RequestParam`을 통해 스프링 측에서 HTTP 요청 파라미터를 자동으로 쉽고 간편하게 받을 수 있도록 한다.
+이는 `request.getParameter()`와 유사한 코드이다. GET/POST 둘 다 지원한다.
+
+`@RequestMapping`을 통해 HTTP 메서드를 지정할 수 있다. 따라서 지정된 메서드 이외의 메서드는 접근할 수 없다.
+이 또한 스프링에서 관리한다. 이 때, GET 메서드로 지정하는 경우 `@GetMapping`으로 지정할 수 있고, POST 메서드로 지정하는 경우
+`@PostMapping`으로 지정할 수 있다. `@GetMapping` 어노테이션을 들어가 보면 안에 `@RequestMapping`이 있음을 알 수 있다.
+
+```java
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@RequestMapping(method = RequestMethod.GET)
+public @interface GetMapping {
+  ...
+}
+```
+즉, 스프링이 어노테이션을 인식할 때, 안에 포함된 여러 어노테이션들도 확인한다. -> 스프링과 어노테이션 조합의 사기성
+사용자가 직접 형식에 맞게 어노테이션을 만든다면 스프링에서도 동작하게끔 할 수 있다는 뜻이다.
