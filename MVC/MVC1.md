@@ -22,6 +22,10 @@
   - [스프링 MVC 시작하기](#스프링-mvc-시작하기)
   - [스프링 MVC 컨트롤러 통합](#스프링-mvc-컨트롤러-통합)
   - [스프링 MVC - 실용적인 방식](#스프링-mvc---실용적인-방식)
+- [스프링 MVC 기본]
+  - [프로젝트 설정](#프로젝트-설정)
+  - [로깅](#로깅)
+
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 1편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1/dashboard
 
@@ -1083,3 +1087,56 @@ public @interface GetMapping {
 ```
 즉, 스프링이 어노테이션을 인식할 때, 안에 포함된 여러 어노테이션들도 확인한다. -> 스프링과 어노테이션 조합의 사기성
 사용자가 직접 형식에 맞게 어노테이션을 만든다면 스프링에서도 동작하게끔 할 수 있다는 뜻이다.
+
+## 스프링 MVC 기본 기능
+### 프로젝트 설정
+프로젝트 생성 시, Packaging을 `Jar`가 아닌 `War`로 한다면 이는 외부 서버에 배포하는 목적으로 사용하는 것이다.
+`Jar`의 경우, 항상 내장 서버(톰캣)을 사용하고, `webapp` 경로도 사용하지 않기 때문에 내장 서버 사용에 최적화된 기능이다.
+
+또한 스프링 부트에 `Jar`를 사용하면 `/resources/static/` 위치에 `index.html`을 넣으면 **Welcome Page**
+로 사용할 수 있다. (정적 컨텐츠)
+
+### 로깅
+`System.out.println()`의 경우, 그저 단순한 값을 출력할 뿐이며 개발 과정에서 지저분한 로그를 남길 수 있기 때문에
+실무에서는 절대 사용하지 않는다. 스프링 부트에서 자동으로 포함한 라이브러리인 `SLF4J`(일종의 인터페이스)를 사용하며,
+그 중 구현체인 `Logback`을 사용한다. (Log4J 등등도 다 이 라이브러리에 포함)
+
+[그림 로깅 결과]
+
+```java
+@RestController
+public class LogTestController {
+    private final Logger log = LoggerFactory.getLogger(getClass());
+
+    @RequestMapping("/log-test")
+    public String logTest() {
+        String name = "Spring";
+
+        System.out.println("name = " + name);
+
+        log.trace("trace log = {}", name);
+        log.debug("debug log = {}", name);
+        log.info("info log = {}", name);
+        log.warn("warn log = {}", name);
+        log.error("error log = {}", name);
+
+        return "ok"; // @RestController의 메서드이기 때문에 단순히 문자열이 그대로 반환된다. (View의 논리적 이름이 아님)
+    }
+}
+```
+- `@RequestController`를 사용할 경우, 반환 값이 바로 **HTTP 메시지 바디에 입력된다.**
+- 출력되는 로그의 포맷은 `시간, 로그 레벨, 프로세스 ID, 쓰레드 명, 클래스 명, 로그 메시지`로, 일반적인 `System.out.println()`보다 구체적인 정보들을 제공함을 알 수 있다.
+  - `{}` 안에 변수 명에 해당하는 값이 들어간다.
+- 로그 레벨 : `TRACE > DEBUG > INFO > WARN > ERROR`
+  - 개발 서버는 debug, 운영 서버는 info 레벨로 설정한다.
+    - debug 레벨의 경우 굉장히 많은 양의 로그가 남게 된다. (레벨이 info 보다 높기 때문에 그만큼 많은 데이터를 알려줌)
+
+```java
+# 전체 로그 레벨 설정(기본 info)
+logging.level.root=info
+
+# hello.springmvc 패키지와 그 하위 로그 레벨 설정
+logging.level.hello.springmvc=trace
+```
+- 로그 레벨을 설정하게 되면, 설정한 구간 마다 출력하는 로그의 범위를 지정할 수 있다. 위처럼 전체 레벨을 설정한 뒤,
+  하위 레벨을 설정하게 되면, 하위 레벨에 대한 것이 우선적으로 적용된다.
