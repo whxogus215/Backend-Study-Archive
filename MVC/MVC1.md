@@ -1101,7 +1101,7 @@ public @interface GetMapping {
 실무에서는 절대 사용하지 않는다. 스프링 부트에서 자동으로 포함한 라이브러리인 `SLF4J`(일종의 인터페이스)를 사용하며,
 그 중 구현체인 `Logback`을 사용한다. (Log4J 등등도 다 이 라이브러리에 포함)
 
-[그림 로깅 결과]
+![로깅 결과](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/5cd2bdd0-aed2-4317-a452-8b15b0e7d3e2)
 
 ```java
 @RestController
