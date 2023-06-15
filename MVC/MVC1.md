@@ -25,6 +25,7 @@
 - [스프링 MVC 기본](#스프링-mvc-기본-기능)
   - [프로젝트 설정](#프로젝트-설정)
   - [로깅](#로깅)
+  - [요청 매핑](#요청-매핑)
 
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 1편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1/dashboard
@@ -1140,3 +1141,82 @@ logging.level.hello.springmvc=trace
 ```
 - 로그 레벨을 설정하게 되면, 설정한 구간 마다 출력하는 로그의 범위를 지정할 수 있다. 위처럼 전체 레벨을 설정한 뒤,
   하위 레벨을 설정하게 되면, 하위 레벨에 대한 것이 우선적으로 적용된다.
+
+#### 올바른 로그 사용법
+`log.debug("data="+data)`
+- 이런식으로 메서드 안에 문자를 더하는 연산을 해서는 안된다. 로그를 출력하기 전에 자바에서 위 연산을 먼저 하기 때문이다.
+  이는 리소스 낭비에 해당하며, 로그레벨 설정으로 인해 해당 로그가 출력되지 않더라도 연산을 진행할 수 있다.(리소스 낭비)  
+
+`log.debug("data={}", data)`
+- 이처럼 더하기 연산을 사용하지 않는 형태를 사용해야 한다. 그러면 만약 로그레벨로 인해 해당 로그가 출력되지 않더라도 위와 같은 불필요한 연산은 하지 않는다.
+- 실무에서는 반드시 이렇게 로그를 작성해야 한다.
+
+로그는 단순히 콘솔 창에 입력하는 `System.out.println()`보다 성능이 훨씬 뛰어나며, 콘솔 창 이외에도 별도의 파일로 생성도 가능하다.
+또한 로그를 통해 여러 부가정보들을 확인할 수 있기 때문에 실무에서 적극 권장하는 방식이다.
+
+### 요청 매핑
+```java
+@RestController
+public class MappingController {
+
+    private Logger log = LoggerFactory.getLogger(getClass());
+
+    @RequestMapping(value = "/hello-basic", method = RequestMethod.GET)
+    public String helloBasic() {
+        log.info("helloBasic");
+        return "ok";
+    }
+
+    @GetMapping(value = "/mapping-get-v2")
+    public String mappingGetV2() {
+        log.info("mapping-get-v2");
+        return "ok";
+    }
+
+    @GetMapping(value = "/mapping/{userId}")
+    public String mappingPath(@PathVariable("userId") String data) {
+        log.info("mappingPath userId={}", data);
+        return "ok";
+    }
+
+    @GetMapping("/mapping/users/{userId}/orders/{orderId}")
+    public String mappingPath(@PathVariable String userId, @PathVariable Long orderId) {
+        // @PathVariable의 데이터 변수와 리소스 식별자 이름이 같으면 (" ") 생략 가능
+        log.info("mappingPath userId = {}, orderId = {}", userId, orderId);
+        return "ok";
+    }
+}
+```
+1. `@RestController`를 사용하면 문자열을 반환하여, 이를 HTTP 메시지 바디에 담게 된다.
+2. `@RequestMapping`을 통해 특정 URI와 메서드를 연결시키는 작업(매핑)이 가능하다.
+   3. URL은 배열을 통해 다중 설정이 가능하다.`@RequestMapping({"/hello-basic", "/hello-go"})`
+4. `/hello-basic`과 `/hello-basic/`은 같은 URL이지만 스프링 부트 3.0부터는 이들을 서로 구분하도록 되어 있다. 따라서 매핑 과정에서 구분하도록 한다.
+5. `@RequestMapping`에 메서드를 지정하거나 혹은 `GetMapping`, `PostMapping`등을 사용할 수 있다.
+
+#### PathVariable(경로 변수) 사용
+이는 URL에 특정한 값을 넣어 전달할 경우, 이들을 처리하는 방식이다. 쿼리 스트링인 ?로 시작하는 방식이 아니므로,
+서로 혼동하지 않도록 한다.
+
+```java
+@GetMapping("/mapping/{userId}")
+public String mappingPath(@PathVariable("userId") String data) {
+ log.info("mappingPath userId={}", data);
+ return "ok";
+}
+```
+최근 여러 API는 리소스 경로에 값을 넣어 전달하는 경우가 많기 때문에 Pathvariable에 대한 사용법도 숙지하는 것이 필요하다.  
+`@Pathvariable`에서의 이름과 파라미터 이름이 같으면 생략할 수 있다.
+> @PathVariable("userId") String data -> @PathVariable String data  
+> 만약 생략이 되어 있다면 이들의 이름이 같기 때문이라고 이해하면 된다.
+
+PathVariable은 다중 사용도 가능하다. 여러 식별자들을 가져올 수 있다는 뜻이다.
+```java
+@GetMapping("/mapping/users/{userId}/orders/{orderId}")
+public String mappingPath(@PathVariable String userId, @PathVariable Long orderId) {
+ log.info("mappingPath userId={}, orderId={}", userId, orderId);
+ return "ok";
+}
+```
+만약, 입력받은 식별자 값의 타입과 파라미터의 타입이 일치하지 않을 경우 에러가 발생한다.
+- `userId`에 숫자, `orderId`에 문자가 입력되었을 경우
+- `2023-06-16 06:59:50.870  WARN 29892 --- [nio-8080-exec-1] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.method.annotation.MethodArgumentTypeMismatchException: Failed to convert value of type 'java.lang.String' to required type 'java.lang.Long'; nested exception is java.lang.NumberFormatException: For input string: "hello"]` 출력됨.
