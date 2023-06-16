@@ -1257,3 +1257,51 @@ public String mappingProduces() {
 이는 컨트롤러가 직접 생성(produces)하는 타입을 지정하는 방식이다. 즉, 위의 경우라면 서버는 `test/html` 형식으로 응답하는 것이다.
 따라서 HTTP 요청 시 `Accept 헤더`에 지정한 타입과 일치해야 한다. `Accept`는 클라이언트가 서버로부터 받고 싶은 데이터 형식을 지정하는 헤더이기 때문이다.
 만약 헤더가 일치하지 않는다면, 406 (Not Acceptable)을 반환한다.
+
+#### 요청 매핑 API 예시
+```java
+package hello.springmvc.basic.requestmapping;
+
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/mapping/users")
+public class MappingClassController {
+
+    /**
+     * 회원 목록 조회: GET /mapping/users
+     * 회원 등록: POST /mapping/users
+     * 회원 조회: GET /mapping/users/id1
+     * 회원 수정: PATCH /mapping/users/id1
+     * 회원 삭제: DELETE /mapping/users/id1
+     */
+
+    @GetMapping
+    public String user() {
+        return "get usrs";
+    }
+
+    @PostMapping
+    public String addUser() {
+        return "post user";
+    }
+
+    @GetMapping("/{userId}")
+    public String findUser(@PathVariable String userId) {
+        return "get userId=" + userId;
+    }
+
+    @PatchMapping("/{userId}")
+    public String updateUser(@PathVariable String userId) {
+        return "update userId=" + userId;
+    }
+
+    @DeleteMapping("/{userId}")
+    public String deleteUser(@PathVariable String userId) {
+        return "delete userId=" + userId;
+    }
+}
+```
+URL마다 겹치는 부분인 `/mapping/users`는 `@RequestMapping`으로 묶으면, 컨트롤러 설계가 훨씬 간편해진다.
+또한 RestController이기 때문에 단순한 문자열 형태로 반환이 가능하다. 같은 URL이더라도 요청 메서드에 따라 다른 컨트롤러가
+호출됨을 알 수 있으며, Path Variable을 통해 클라이언트로부터 데이터를 입력받아 처리하는 로직도 확인할 수 있다.
