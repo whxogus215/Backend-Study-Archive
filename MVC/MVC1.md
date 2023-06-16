@@ -1220,3 +1220,40 @@ public String mappingPath(@PathVariable String userId, @PathVariable Long orderI
 만약, 입력받은 식별자 값의 타입과 파라미터의 타입이 일치하지 않을 경우 에러가 발생한다.
 - `userId`에 숫자, `orderId`에 문자가 입력되었을 경우
 - `2023-06-16 06:59:50.870  WARN 29892 --- [nio-8080-exec-1] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.method.annotation.MethodArgumentTypeMismatchException: Failed to convert value of type 'java.lang.String' to required type 'java.lang.Long'; nested exception is java.lang.NumberFormatException: For input string: "hello"]` 출력됨.
+
+#### 특정 헤더 조건 매핑
+```java
+/**
+ * Content-Type 헤더 기반 추가 매핑 Media Type
+ * consumes="application/json"
+ * consumes="!application/json"
+ * consumes="application/*"
+ * consumes="*\/*"
+ * MediaType.APPLICATION_JSON_VALUE
+ */
+@PostMapping(value = "/mapping-consume", consumes = "application/json")
+public String mappingConsumes() {
+    log.info("mappingConsumes");
+    return "ok";
+}
+```
+HTTP 요청의 `Content-Type`의 타입을 지정하는 방식이다. 위에서 지정한 형식과 맞지 않는 요청에 대해서는 
+415 (Unsupported Media Type)을 반환한다. (컨트롤러(서버) 입장에서 요청받은 데이터를 소비하는 그림이기에 `consumes` 표현을 사용)
+
+```java
+/**
+ * Accept 헤더 기반 Media Type
+ * produces = "text/html"
+ * produces = "!text/html"
+ * produces = "text/*"
+ * produces = "*\/*"
+ */
+@PostMapping(value = "/mapping-produce", produces = "text/html")
+public String mappingProduces() {
+     log.info("mappingProduces");
+     return "ok";
+}
+```
+이는 컨트롤러가 직접 생성(produces)하는 타입을 지정하는 방식이다. 즉, 위의 경우라면 서버는 `test/html` 형식으로 응답하는 것이다.
+따라서 HTTP 요청 시 `Accept 헤더`에 지정한 타입과 일치해야 한다. `Accept`는 클라이언트가 서버로부터 받고 싶은 데이터 형식을 지정하는 헤더이기 때문이다.
+만약 헤더가 일치하지 않는다면, 406 (Not Acceptable)을 반환한다.
