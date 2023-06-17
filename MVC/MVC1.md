@@ -26,6 +26,7 @@
   - [프로젝트 설정](#프로젝트-설정)
   - [로깅](#로깅)
   - [요청 매핑](#요청-매핑)
+  - [HTTP 요청](#http-요청)
 
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 1편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1/dashboard
@@ -1305,3 +1306,39 @@ public class MappingClassController {
 URL마다 겹치는 부분인 `/mapping/users`는 `@RequestMapping`으로 묶으면, 컨트롤러 설계가 훨씬 간편해진다.
 또한 RestController이기 때문에 단순한 문자열 형태로 반환이 가능하다. 같은 URL이더라도 요청 메서드에 따라 다른 컨트롤러가
 호출됨을 알 수 있으며, Path Variable을 통해 클라이언트로부터 데이터를 입력받아 처리하는 로직도 확인할 수 있다.
+
+### HTTP 요청
+애노테이션을 활용한 스프링 컨트롤러는 다양한 파라미터를 지원한다. 즉, HTTP 요청에서 헤더와 바디의 데이터들을
+쉽게 가져올 수 있는 다양한 기능들을 지원한다.
+```java
+@Slf4j
+@RestController
+public class RequestHeaderController {
+
+    @RequestMapping("/headers")
+    public String headers(HttpServletRequest request,
+                          HttpServletResponse response,
+                          HttpMethod httpMethod,
+                          Locale locale,
+                          @RequestHeader MultiValueMap<String, String> headerMap,
+                          @RequestHeader("host") String host,
+                          @CookieValue(value = "myCookie", required = false) String cookie) {
+
+        log.info("request={}", request);
+        log.info("response={}", response);
+        log.info("httpMethod={}", httpMethod);
+        log.info("locale={}", locale);
+        log.info("headerMap={}", headerMap);
+        log.info("header host={}", host);
+        log.info("myCookie={}", cookie);
+
+        return "ok";
+
+    }
+
+}
+```
+HTTP 서블릿을 포함해, HTTP 요청 헤더에 있는 메서드, locale, 그리고 HTTP 헤더내용을 Key-Value 형태인 Map으로 가져올 수도 있다.
+이 때, MultiValueMap은 하나의 Key에 여러 Value들이 있을 수 있다. 이외에 특정 HTTP 헤더를 조회하는 방식도 있다. (`@RequestHeader("")`)
+> 스프링 컨트롤러가 사용 가능한 파라미터 목록 공식 매뉴얼 :  
+  https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-methods/arguments.html
