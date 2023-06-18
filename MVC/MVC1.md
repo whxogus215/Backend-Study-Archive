@@ -1342,3 +1342,50 @@ HTTP 서블릿을 포함해, HTTP 요청 헤더에 있는 메서드, locale, 그
 이 때, MultiValueMap은 하나의 Key에 여러 Value들이 있을 수 있다. 이외에 특정 HTTP 헤더를 조회하는 방식도 있다. (`@RequestHeader("")`)
 > 스프링 컨트롤러가 사용 가능한 파라미터 목록 공식 매뉴얼 :  
   https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-methods/arguments.html
+
+#### HTTP 요청 파라미터 - 쿼리 파라미터, HTML Form
+클라이언트에서 서버에게 요청 데이터를 전달하는 방법은 크게 세 가지이다.
+1. GET - 쿼리 파라미터
+2. POST - HTML Form
+3. HTTP 메시지 바디에 데이터 담기(JSON)
+
+이 때 1번과 2번은 데이터 형식이 쿼리 파라미터이다. 다만 1번은 URL에 직접 담기고, 2번은 메시지 바디에 담긴다.
+하지만 데이터 형식은 동일하다. `PathVariable`은 URL에 입력된 식별자를 가져오는 것이며, 이는 쿼리 파라미터처럼 데이터를
+요청하는 것과는 거리가 멀다. `PathVariable`은 그 자체가 요청 URL이 되지만, **쿼리 파라미터는 특정 URL에 별도로 데이터를 담는 방식으로 그 둘은 차이가 존재한다!**
+
+```java
+@Slf4j
+@Controller
+public class RequestParamController {
+
+    @RequestMapping("/request-param-v1")
+    public void requestParamV1(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        String username = request.getParameter("username");
+        int age = Integer.parseInt(request.getParameter("age"));
+        log.info("username={}, age={}", username, age);
+
+        response.getWriter().write("ok");
+    }
+}
+```
+`HttpServletRequest` 객체를 사용하면 HTTP 요청의 파라미터를 쉽게 가져올 수 있다.
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<form action="/request-param-v1" method="post">
+    username: <input type="text" name="username" />
+    age: <input type="text" name="age" />
+    <button type="submit">전송</button>
+</form>
+</body>
+</html>
+```
+파일의 위치는 `/resources/static`으로 스프링 부트에서 자동으로 인식한다. 이 때 입력되는 `username`과 `age`도
+동일하게 쿼리 파라미터 형식으로 넘어온다. 다만 **POST 요청이고, 쿼리 파라미터가 메시지 바디에 담긴다는 차이점만 존재한다.**
+같은 컨트롤러를 통해 동일한 로그가 출력됨을 확인할 수 있다.
