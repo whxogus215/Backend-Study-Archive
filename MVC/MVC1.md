@@ -28,6 +28,7 @@
   - [요청 매핑](#요청-매핑)
   - [HTTP 요청](#http-요청)
   - [HTTP 응답](#http-응답)
+  - [HTTP 메시지 컨버터](#http-메시지-컨버터)
 
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 1편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1/dashboard
@@ -1740,6 +1741,35 @@ public class ResponseBodyController {
 - `@RestController`는 `@Controller`와 `@ResponseBody`가 합쳐진 것이다. 실제로 `@RestController` 안에 `@Controller`와 `@ResponseBody`가 있다.
 컨트롤러 전체에 `@ResponseBody`를 적용해야 할 경우, 클래스 레벨에 작성하면 된다. 이렇게 설정하게 되면 이는 뷰 템플릿을 사용하지 않고
 직접 데이터를 전달하는 형태로, Rest API(HTTP API)를 만들 때 사용하는 컨트롤러이다. 따라서 이름이 `@RestController`인 것이다.
+
+### HTTP 메시지 컨버터
+[그림 메시지 컨버터]
+HTTP 메시지 컨버터는 기본적으로 **인터페이스**이다. 따라서 특정 조건에 맞는 여러 형태의 컨버터를 지원하는 것이다.
+- HTTP 요청에서 사용되는 메시지 컨버터 : `@RequestBody`,`HttpEntity(RequestEntity)` 사용했을 경우
+- HTTP 응답에서 사용되는 메시지 컨버터 : `@ResponseBody`,`HttpEntity(ResponseEntity)` 사용했을 경우
+
+```java
+public interface HttpMessageConverter<T> {
+    
+  boolean canRead(Class<?> clazz, @Nullable MediaType mediaType);
+  boolean canWrite(Class<?> clazz, @Nullable MediaType mediaType);
+  
+  List<MediaType> getSupportedMediaTypes();
+  
+  T read(Class<? extends T> clazz, HttpInputMessage inputMessage) throws IOException, HttpMessageNotReadableException;
+    void write(T t, @Nullable MediaType contentType, HttpOutputMessage outputMessage)
+    throws IOException, HttpMessageNotWritableException;
+    
+}
+```
+HTTP 메시지 컨버터는 HTTP 요청 및 응답 둘 다 사용된다. 메시지 컨버터는 다음과 같은 메서드 순서로 동작한다.(선체크 후동작)
+- `canRead(), canWrite()` : 메시지 컨버터가 해당 클래스와 미디어 타입을 지원하는지 체크하는 메서드
+- `read(), write()` : 메시지 컨버터를 통해서 실제 메시지를 읽고 쓰는 메서드
+
+[그림 스프링 부트 메시지 컨버터]
+HTTP 요청의 경우, 요청 대상의 클래스 타입을 확인하며, HTTP 요청 헤더의 `Content-Type`을 확인한 후, 알맞은 컨버터를 사용한다.  
+HTTP 응답의 경우, 응답 대상의 클래스 타입을 확인하며, HTTP 요청 헤더의 `Accept` 미디어 타입을 확인한다. (클라이언트가 받을 수 있는 미디어 타입인지 확인)
+[그림 컨버터 동작 순서]
 
 
 
