@@ -1625,4 +1625,121 @@ HTTP 요청 헤더의 Content-Type이 application/json이어야 한다. 그래�
   - 객체 반환 -> HTTP 메시지 컨버터 실행 -> JSON으로 응답
 
 ### HTTP 응답
+HTTP 응답에는 크게 세 가지가 있다.
+1. 정적 리소스 : 변동되지 않는 정적인 파일 제공 (HTML, CSS, JS가 변하지 않음)
+2. 뷰 템플릿 사용 : 웹 브라우저에 동적인 HTML을 제공해야 할 경우 사용
+3. HTTP 메시지 사용(HTTP API) : HTML 파일이 아닌 JSON 같은 형식의 데이터를 전달하는 경우 사용
+
+#### 정적 리소스
+스프링 부트에서 지원하는 디렉토리는 `/static`,`/public`,`/resources`,`/META-INF/resources`가 있다.
+따라서 정적인 파일을 해당 디렉토리에 넣으면 스프링 부트가 서비스를 제공한다.
+즉, `src/main/resources/static`이라는 스프링 부트가 지원하는 디렉토리에 `/basic/hello.html`을 추가하면
+웹 브라우저에서 `xxx/basic/hello.html`을 통해 접근이 가능하다.
+
+#### 뷰 템플릿
+뷰 템플릿을 거치면 자동으로 HTML이 생성되어 View에서 응답을 한다. 주로 HTML을 동적으로 생성하는 용도로 사용한다.
+그 외에 뷰 템플릿이 지원하는 어떤 형태라도 지원이 가능하다. 스프링 부트의 경유 기본 뷰 템플릿 경로를 제공한다.  
+`src/main/resources/templates` : 뷰 템플릿이므로 templates 폴더로 지정되어 있다. 정적 리소스의 경우 `/static`
+```html
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<p th:text="${data}">empty</p>
+</body>
+</html>
+```
+이는 Thymeleaf 뷰 템플릿에서 지원하는 형태로 컨트롤러에서 넘겨준 Model Attribute 값을 자동으로 바인딩한다.
+```java
+@Controller
+public class ResponseViewController {
+
+    @RequestMapping("/response-view-v1")
+    public ModelAndView responseViewV1() {
+        ModelAndView mav = new ModelAndView("response/hello")
+                .addObject("data", "hello!");
+
+        return mav;
+    }
+
+    @RequestMapping("/response-view-v2")
+    public String responseViewV2(Model model) {
+        model.addAttribute("data", "hello!");
+        return "response/hello"; // @Controller일 때 : view의 논리적 이름 반환
+        // response/hello는 스프링에서 지원하는 경로인 resources/templates의 하위 경로이다.
+    }
+}
+```
+`@Controller`에서 View 객체를 반환하거나 String을 반환하여 뷰의 논리적 이름을 반환할 수도 있다. 만약 `@ResponseBody`가 있으면
+뷰의 논리적 이름이 아닌 메시지 바디에 들어가는 문자열을 반환하게 되는 것이다. 따라서 이 때는 뷰 리졸버가 아닌 HTTP 메시지 컨버터가 실행되어
+HTTP 메시지 바디에 직접 문자열이 입력된다.( + HttpEntity 객체도 동일하다.)
+
+Thymeleaf에는 뷰 리졸버 동작에 필요한 설정들이 자동으로 등록되어 있다.
+```java
+spring.thymeleaf.prefix=classpath:/templates/
+spring.thymeleaf.suffix=.html
+```
+> 뷰의 논리적 이름을 반환했을 때, 뷰 리졸버가 위와 같은 설정 값을 통해 실제 리소스 값을 찾아서 반환한다.
+
+#### HTTP API, 메시지 바디에 직접 입력
+HTTP API의 경우, 정적 리소스나 뷰 템플릿을 거치지 않고 직접 HTTP 응답 메시지를 전달하는 경우이다.
+```java
+@Slf4j
+@Controller
+@ResponseBody // 클래스 레벨에 어노테이션을 붙이면 메서드 레벨에 전부 적용이 된다.
+@RestController // @Controller + @ResponseBody = @RestController
+public class ResponseBodyController {
+
+    @GetMapping("/response-body-string-v1")
+    public void responseBodyV1(HttpServletResponse response) throws IOException {
+        response.getWriter().write("ok");
+    }
+
+    @GetMapping("/response-body-string-v2")
+    public ResponseEntity<String> responseBodyV2() {
+        return new ResponseEntity<>("ok", HttpStatus.OK);
+    }
+
+    @ResponseBody
+    @GetMapping("/response-body-string-v3")
+    public String responseBodyV3() {
+        return "ok";
+    }
+
+    @GetMapping("/response-body-json-v1")
+    public ResponseEntity<HelloData> responseBodyJsonV1() {
+        HelloData helloData = new HelloData();
+        helloData.setUsername("userA");
+        helloData.setAge(20);
+
+        return new ResponseEntity<>(helloData, HttpStatus.OK);
+    }
+
+    @ResponseStatus(HttpStatus.OK) // ResponseEntity를 반환하지 않기 때문에 HTTP 상태코드를 어노테이션으로 설정해줘야 한다.
+    @ResponseBody
+    @GetMapping("/response-body-json-v2")
+    public HelloData responseBodyJsonV2() {
+        HelloData helloData = new HelloData();
+        helloData.setUsername("userA");
+        helloData.setAge(20);
+
+        return helloData;
+    }
+
+
+}
+```
+- `ResponseEntity(HttpEntity를 상속받음)` 객체를 사용하면 메시지 바디와 함께 응답 코드도 설정이 가능하다.
+- `@ResponseBody`를 사용하면 HTTP 메시지 컨버터를 통해 HTTP 메시지를 직접 입력할 수 있다. ( + ResponseEntity도 동일하게 동작한다.)
+- `ResponseEntity`도 JSON 타입의 데이터로 반환하는 데 사용할 수 있다.
+  - 만약, `@ResponseBody`를 사용하는 경우라면, 응답 코드를 설정하기 까다롭다. 따라서 추가로 `@ResponseStatus`라는 어노테이션을 붙여준다.
+    - 프로그램 조건에 맞게 동적으로 응답코드를 변경해야 한다면 `ResponseEntity`를 사용해야 한다. (어노테이션은 고정되어 있기 때문)
+- `@RestController`는 `@Controller`와 `@ResponseBody`가 합쳐진 것이다. 실제로 `@RestController` 안에 `@Controller`와 `@ResponseBody`가 있다.
+컨트롤러 전체에 `@ResponseBody`를 적용해야 할 경우, 클래스 레벨에 작성하면 된다. 이렇게 설정하게 되면 이는 뷰 템플릿을 사용하지 않고
+직접 데이터를 전달하는 형태로, Rest API(HTTP API)를 만들 때 사용하는 컨트롤러이다. 따라서 이름이 `@RestController`인 것이다.
+
+
 
