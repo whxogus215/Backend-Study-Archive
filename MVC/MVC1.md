@@ -1388,4 +1388,111 @@ public class RequestParamController {
 ```
 파일의 위치는 `/resources/static`으로 스프링 부트에서 자동으로 인식한다. 이 때 입력되는 `username`과 `age`도
 동일하게 쿼리 파라미터 형식으로 넘어온다. 다만 **POST 요청이고, 쿼리 파라미터가 메시지 바디에 담긴다는 차이점만 존재한다.**
-같은 컨트롤러를 통해 동일한 로그가 출력됨을 확인할 수 있다.
+같은 컨트롤러를 통해 동일한 로그가 출력됨을 확인할 수 있다. - URL 쿼리 파라미터와 HTML Form 요청은 메서드만 다를뿐 근본은 같다.
+
+#### HTTP 요청 파라미터 - @RequestParam
+스프링이 제공하는 어노테이션 `@RequestParam`을 사용하면 Http 서블릿 객체를 사용하지 않아도 된다.
+```java
+@ResponseBody
+    @RequestMapping("/request-param-v2")
+    public String requestParamV2(
+            @RequestParam("username") String memberName,
+            @RequestParam("age") int memberAge) {
+        log.info("username={}, age={}", memberName, memberAge);
+        return "ok"; // 일반 @Controller에서 문자열을 반환할 경우, 해당 이름의 View를 찾게 된다. -> @ResponseBody를 사용해서 메시지 바디에 "ok"를 담도록 한다.
+    }
+
+    @ResponseBody
+    @RequestMapping("/request-param-v3")
+    public String requestParamV3(
+            @RequestParam String username, // HTTP 요청 파라미터의 이름과 같게하면 코드를 간략화할 수 있다.
+            @RequestParam int age) {
+        log.info("username={}, age={}", username, age);
+        return "ok";
+    }
+
+    @ResponseBody
+    @RequestMapping("/request-param-v4")
+    public String requestParamV4(String username, int age) { // HTTP 요청 파라미터의 이름과 동일하다면 @RequestParam도 생략 가능하다.
+        log.info("username={}, age={}", username, age);
+        return "ok";
+    }
+
+    @ResponseBody
+    @RequestMapping("/request-param-required")
+    public String requestParamRequired(
+            @RequestParam(required = true) String username,
+            @RequestParam(required = false) Integer age) {
+        log.info("username={}, age={}", username, age);
+        return "ok";
+    }
+
+    @ResponseBody
+    @RequestMapping("/request-param-default")
+    public String requestParamDefault(
+            @RequestParam(required = true, defaultValue = "guest") String username,
+            @RequestParam(required = false, defaultValue = "-1") int age) {
+        log.info("username={}, age={}", username, age);
+        return "ok";
+    }
+
+    @ResponseBody
+    @RequestMapping("/request-param-map")
+    public String requestParamMap(@RequestParam Map<String, Object> paramMap) {
+        log.info("username={}, age={}", paramMap.get("username"), paramMap.get("age"));
+        return "ok";
+    }
+```
+컨트롤러의 매개변수에 `@RequestParam`을 붙이면 HTTP 요청 파라미터를 바로 가져올 수 있다.
+만약, 요청 파라미터 이름과 매개변수를 같게하면, `@RequestParam`의 속성 값을 생략할 수 있다. (`@RequestParam` 어노테이션 자체도 생략이 가능하지만 가급적 붙이는 걸 권장한다. (HTTP 요청 파라미터를 받는 부분임을 표시하기 위해서))
+- `RequestParam`의 `required` 값의 디폴트는 true이다. `required`는 말 그대로, 파라미터 필수 여부를 설정하는 것이다.
+만약, `required = true`인 파라미터를 요청하지 않게 되면, `Bad Request`가 발생한다.
+- 값이 공백일 경우, 이는 `" "` 즉, 빈 문자열로 받아들인다. 따라서 `defaultValue`를 설정할 수 있다.
+즉, 요청하지 않은 변수들에 대해 자동으로 설정하는 것이다.
+- Map을 사용해서 요청 파라미터 key 값을 통해 값을 가져올 수도 있다.
+> `@ResponseBody`를 사용하면 문자열을 반환하면 메시지 바디에 담겨서 전송된다. `@Controller`에서 문자열을 반환해버리면 해당 이름의 View를 찾게 된다. 따라서 `@RestController`를 붙여야 한다. 하지만 
+> 이 방법 말고도 `@ResponseBody`를 사용할 수 있다.
+
+#### HTTP 요청 파라미터 - @ModelAttribute
+실제로 개발을 할 때는, 요청 파라미터를 받은 뒤 이를 통해 실제 필요한 객체를 생성해야 한다. 즉, Model을 사용해야 한다.
+```java
+@RequestParam String username;
+@RequestParam int age;
+
+HelloData data = new HelloData();
+data.setUsername(username);
+data.setAge(age);
+```
+이렇게 요청 파라미터를 받아서 객체를 생성하고 프로퍼티를 설정하는 과정을 하나의 어노테이션으로 간편화할 수 있다.
+```java
+@Data
+public class HelloData {
+    private String username;
+    private int age;
+
+} // 롬복 @Data - @Getter, @Setter, @ToString 등이 자동으로 적용된다. 
+```
+```java
+@ResponseBody
+@RequestMapping("/model-attribute-v1")
+public String modelAttributeV1(@ModelAttribute HelloData helloData) {
+ log.info("username={}, age={}", helloData.getUsername(),helloData.getAge());
+ return "ok";
+}
+```
+1. 먼저 HTTP 요청 파라미터를 바인딩(입력) 받을 객체를 생성한다.
+2. 컨트롤러의 파라미터에 `@ModelAttribute` 붙여서 객체를 파라미터로 받도록 한다.
+
+스프링 MVC는 `@ModelAttribute`를 통해 HelloData 객체를 찾은 뒤, 요청 파라미터의 이름으로 HelloData 객체의 프로퍼티를 찾는다.
+그리고 해당 프로퍼티의 setter를 호출해서 파라미터 값을 바인딩(입력) 한다. 만약, 요청받은 값의 타입과 프로퍼티 타입이 일치하지 않으면 `BindException`이 발생한다. 이는 검증을 통해 해결한다.(MVC 2편에서 다룸)
+
+객체에 `getUsername()`, `setUsername()` 이라는 메서드가 있다면, 그 객체는 `username`이라는 프로퍼티(멤버)를 갖고 있는 것이다.
+> 프로퍼티 xxx -> getXxx() / setXxx()
+
+`@ModelAttribute` 또한 생략이 가능하다. 하지만 앞서 `@RequestParam`도 생략이 가능하다고 했으니 혼동이 생길 수 있다.
+- `String`,`int`,`Integer` 같은 단순 타입을 생략할 경우 `@RequestParam`으로 인식
+- 그 이외에 사용자가 생성한 객체, argument resolver로 지정된 타입을 생략할 경우 `@ModelAttribute`로 인식
+어쨌든 `@ModelAttribute`와 `@RequestParam`은 요청 파라미터를 전달받아 처리한다는 점은 동일하다. **다만 객체에 직접 바인딩을
+하냐 안하냐의 차이일 뿐이다.**
+
+
