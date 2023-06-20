@@ -27,6 +27,7 @@
   - [로깅](#로깅)
   - [요청 매핑](#요청-매핑)
   - [HTTP 요청](#http-요청)
+  - [HTTP 응답](#http-응답)
 
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 1편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1/dashboard
@@ -1346,7 +1347,7 @@ HTTP 서블릿을 포함해, HTTP 요청 헤더에 있는 메서드, locale, 그
 #### HTTP 요청 파라미터 - 쿼리 파라미터, HTML Form
 클라이언트에서 서버에게 요청 데이터를 전달하는 방법은 크게 세 가지이다.
 1. GET - 쿼리 파라미터
-2. POST - HTML Form
+2. POST - HTML Form(Content-Type : application/x-www-form-urlencoded)
 3. HTTP 메시지 바디에 데이터 담기(JSON)
 
 이 때 1번과 2번은 데이터 형식이 쿼리 파라미터이다. 다만 1번은 URL에 직접 담기고, 2번은 메시지 바디에 담긴다.
@@ -1495,4 +1496,133 @@ public String modelAttributeV1(@ModelAttribute HelloData helloData) {
 어쨌든 `@ModelAttribute`와 `@RequestParam`은 요청 파라미터를 전달받아 처리한다는 점은 동일하다. **다만 객체에 직접 바인딩을
 하냐 안하냐의 차이일 뿐이다.**
 
+#### HTTP 요청 메시지 - 단순 텍스트
+요청 파라미터(GET 메서드의 쿼리 파라미터, POST 메서드의 HTML FORM 요청)가 아닌 메시지 바디에 데이터가 직접 담겨져 들어오는 경우
+`@ResponseBody`를 사용해야 한다.
+> HTML FORM의 경우, 메시지 바디에 데이터를 담아서 요청한다. 하지만 이는 결국 쿼리 스트링 형식으로 전달되기 때문에
+쿼리 파라미터로 인정이 되는 것이다. 즉, 메시지 바디에 담기는 경우 Content-Type이 Form이어야만 가능하다. 그 이외에는 다 쿼리 파라미터로 인정되지 않는다.
+
+```java
+@Slf4j
+@Controller
+public class RequestBodyStringController {
+    @PostMapping("/request-body-string-v1")
+    public void requestBodyString(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        ServletInputStream inputStream = request.getInputStream();
+        String messageBody = StreamUtils.copyToString(inputStream, StandardCharsets.UTF_8); // 바이트 코드를 변환하는 코드
+
+        log.info("messageBody={}", messageBody);
+
+        response.getWriter().write("ok");
+    }
+
+    @PostMapping("/request-body-string-v2")
+    public void requestBodyStringV2(InputStream inputStream, Writer responseWriter) throws IOException {
+        String messageBody = StreamUtils.copyToString(inputStream, StandardCharsets.UTF_8); // 바이트 코드를 변환하는 코드
+        log.info("messageBody={}", messageBody);
+        responseWriter.write("ok");
+    }
+
+    @PostMapping("/request-body-string-v3")
+    public HttpEntity<String> requestBodyStringV3(HttpEntity<String> httpEntity) throws IOException {
+        String messageBody = httpEntity.getBody();
+        log.info("messageBody={}", messageBody);
+
+        return new HttpEntity<>("ok");
+    }
+    
+    // 실무에서는 이 방식을 사용
+    @ResponseBody
+    @PostMapping("/request-body-string-v4")
+    public String requestBodyStringV4(@RequestBody String messageBody){
+        log.info("messageBody={}", messageBody);
+        return "ok";
+    }
+}
+```
+가장 원초적인 방법은 자바의 `Stream`을 사용하여 HTTP 요청 메시지 바디에 있는 내용을 직접 읽는 것이다.
+그러나 스프링에서 지원하는 `HttpEntity`를 사용하면 HTTP 헤더 및 바디 정보를 쉽게 조회할 수 있다. 또한 응답 시에도 `HttpEntity`를 사용할 수 있다.
+
+스프링은 **HTTP 메시지 컨버터**를 통해 HTTP 메시지 바디를 읽어서 알맞은 타입으로 변환하여 전달한다. 또한 반환할 때도
+객체를 알맞은 타입(문자, JSON 등)으로 바꿔주는 역할도 한다. 이 덕분에 스프링을 통해 HTTP 메시지 바디를 쉽게 다룰 수 있는 것이다.
+
+`@RequestBody`를 사용하면 HTTP 메시지 바디를 쉽게 조회할 수 있으며, 실무에서 가장 많이 사용하는 방식이다.
+이는 앞선 코드들과 달리 여러 객체들을 사용할 필요 없이 어노테이션 하나로 정리가 가능하다.
+`@RequestBody`는 메시지 바디를 조회하는 것이다. `@RequestParam`,`@ModelAttribute`처럼 요청 파라미터를 조회하는 것과는
+전혀 관계가 없다.
+
+#### HTTP 요청 메시지 - JSON
+```java
+@Slf4j
+@Controller
+public class RequestBodyJsonController {
+
+    private ObjectMapper objectMapper = new ObjectMapper();
+
+    @PostMapping("/request-body-json-v1")
+    public void requestBodyJsonV1(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        ServletInputStream inputStream = request.getInputStream();
+        String messageBody = StreamUtils.copyToString(inputStream, StandardCharsets.UTF_8);
+
+        log.info("messageBody={}", messageBody);
+        HelloData helloData = objectMapper.readValue(messageBody, HelloData.class);
+        log.info("username={}, age={}", helloData.getUsername(), helloData.getAge());
+
+        response.getWriter().write("ok");
+    }
+
+    @ResponseBody
+    @PostMapping("/request-body-json-v2")
+    public String requestBodyJsonV2(@RequestBody String messageBody) throws IOException {
+
+        log.info("messageBody={}", messageBody);
+        HelloData helloData = objectMapper.readValue(messageBody, HelloData.class);
+        log.info("username={}, age={}", helloData.getUsername(), helloData.getAge());
+
+        return "ok";
+    }
+
+    @ResponseBody
+    @PostMapping("/request-body-json-v3")
+    public String requestBodyJsonV3(@RequestBody HelloData helloData){
+        log.info("username={}, age={}", helloData.getUsername(), helloData.getAge());
+
+        return "ok";
+    }
+
+    @ResponseBody
+    @PostMapping("/request-body-json-v4")
+    public String requestBodyJsonV4(HttpEntity<HelloData> helloData){
+        HelloData body = helloData.getBody();
+        log.info("username={}, age={}", body.getUsername(), body.getAge());
+
+        return "ok";
+    }
+
+    @ResponseBody
+    @PostMapping("/request-body-json-v5")
+    public HelloData requestBodyJsonV5(@RequestBody HelloData helloData){
+        log.info("username={}, age={}", helloData.getUsername(), helloData.getAge());
+
+        return helloData;
+    }
+}
+```
+단순 문자열로 요청을 받는 것보다는 API를 통해 JSON 타입으로 데이터를 요청 받는 경우가 실제로는 더욱 많다.
+하지만 전달받은 JSON을 그대로 사용할 수는 없다. 따라서 JSON을 적절한 문자열 및 기타 객체로 바꿔주는 기능이 필요하다.
+이를 쉽게 해주는 것이 앞서 설명한 **HTTP 메시지 컨버터**이다.
+
+`@RequestBody`를 사용하면 메시지 바디에 있는 JSON을 객체로 바꿔줄 수 있다. 그러면 이 객체에서 각종 프로퍼티를
+쉽게 가져올 수 있는 것이다. **주의할 점은 `@RequestBody`는 생략이 불가하다.** 생략될 경우, `@ModelAttribute`가 자동으로
+추가되기 때문이다.(요청 매개변수가 객체이므로 생략 시 `ModelAttribute`로 인식되는 것임)
+
+HTTP 요청 헤더의 Content-Type이 application/json이어야 한다. 그래야 JSON을 처리할 수 있는 HTTP 메시지 컨버터가 실행된다.
+
+응답의 경우에도, `@ResponseBody`를 통해 직접 응답 메시지 바디에 데이터를 넣을 수 있으며, `HttpEntity` 및 객체를 반환 가능하다.
+- `@RequestBody` 사용
+  - JSON 요청받음 -> HTTP 메시지 컨버터 실행 -> 객체
+- `@ResponseBody` 사용
+  - 객체 반환 -> HTTP 메시지 컨버터 실행 -> JSON으로 응답
+
+### HTTP 응답
 
