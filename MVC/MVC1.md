@@ -29,6 +29,7 @@
   - [HTTP 요청](#http-요청)
   - [HTTP 응답](#http-응답)
   - [HTTP 메시지 컨버터](#http-메시지-컨버터)
+  - [요청 매핑 핸들러 어댑터 구조](#요청-매핑-핸들러-어댑터-구조)
 
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 1편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-1/dashboard
@@ -1777,6 +1778,81 @@ HTTP 응답의 경우, 응답 대상의 클래스 타입을 확인하며, HTTP �
 
 > `*/*`은 아무 타입이나 상관없다는 뜻이다.
 
+### 요청 매핑 핸들러 어댑터 구조
+[그림 mvc 구조]
+[그림 핸들러 어댑터 동작방식]
+
+MVC 구조에서 개발자가 설계한 컨트롤러(핸들러)가 실행되기 위해서는 핸들러 어댑터가 먼저 실행되어야 한다. 즉, 핸들러가
+필요로 하는 파라미터들을 찾은 뒤, 컨트롤러 메서드에 집어넣어 호출하는 것이다. 따라서 핸들러 어댑터 입장에서 컨트롤러를
+호출하기 위해서는 파라미터를 어디서 가져오거나 직접 생성해야만 한다. 이 **핸들러 어댑터에게 컨트롤러를 호출하기 위해 필요한
+파라미터(Argument)를 직접 생성하여 제공하는 것이 Argument Resolver이다.** 그리고 이 Argument가 HTTP 메시지 컨버터를 사용한다.
+
+#### Argument Resolver
+애노테이션 기반 컨트롤러의 장점은 여러 종류의 파라미터를 지원한다는 것이다. (`@RequestBody`,`HttpEntity`,`@ModelAttribute`,`@RequestParam` 등등)
+핸들러 어댑터는 Argument Resolver를 호출하여 컨트롤러가 필요로 하는 다양한 파라미터의 값(객체)을 생성한다.
+이를 통해 핸들러 어댑터는 컨트롤러를 호출할 수 있게 되는 것이다.
+
+스프링은 30개가 넘는 ArgumentResolver를 갖고 있다.  
+(참고 : https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-methods/arguments.html)
+
+```java
+public interface HandlerMethodArgumentResolver {
+    boolean supportsParameter(MethodParameter parameter);
+    
+    @Nullable
+    Object resolveArgument(MethodParameter parameter, @Nullable ModelAndViewContainer mavContainer,
+        NativeWebRequest webRequest, @Nullable WebDataBinderFactory 
+            binderFactory) throws Exception;
+}
+```
+
+ArgumentResolver는 인터페이스로 구현되어 있기 때문에 다양한 종류의 리졸버로 확장이 가능하다. 따라서 ArgumentResolver의
+정식명칭은 `HandlerMethodArgumentResolver`이다. 첫 번째로 `supportsParameter()`를 호출하여 컨트롤러가 필요로 하는 파라미터를
+생성해낼 수 있는지를 판단한다. 만약 True라면 `resolveArgument()`를 호출하여 실제 객체를 생성한다.(반환타입 Object) 그리고 이렇게
+생성된 객체가 컨트롤러 호출시 넘어가게 되는 것이다.
+
+#### ReturnValueHandler
+`HandlerMethodReturnValueHandler`를 줄여서 ReturnValueHandler라고 부른다. 이 또한 ArgumentResolver와 마찬가지로
+인터페이스로 구현되어 있다. 스프링은 10여개가 넘는 ReturnValueHandler를 갖고 있다.  
+(참고 : https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-methods/return-types.html)
+
+이 ReturnValueHandler는 반환 타입으로 오는 `String`,`HttpEntity`,`Model`등을 처리하는 것으로 ArgumentResolver와 비슷한 역할을 한다.
+```java
+public interface HandlerMethodReturnValueHandler {
+
+	boolean supportsReturnType(MethodParameter returnType);
+	void handleReturnValue(@Nullable Object returnValue, MethodParameter returnType,
+			ModelAndViewContainer mavContainer, NativeWebRequest webRequest) throws Exception;
+
+}
+```
+
+#### HTTP 메시지 컨버터가 동작하는 곳
+[그림 HTTP 메시지 컨버터 위치]
+HTTP 메시지 컨버터가 사용되는 조건은 컨트롤러 파라미터에 `@RequestBody` 혹은 클래스(or 메서드) 레벨에 `@ResponseBody`가 있는 경우에
+동작한다. 이는 즉, ArgumentResolver 및 ReturnValueHandler에서 처리하는 요청 파라미터 객체 / 반환 타입 처리와 관련이 있는 것이다.
+따라서 HTTP 메시지 컨버터는 ArgumentResolver 및 ReturnValueHandler에서 호출된다.
+
+- 요청의 경우 : `@RequestBody`를 처리하는 ArgumentResolver가 있고, `HttpEntity`를 처리하는 ArgumentResolver가 있을 것이다.
+이 ArgumentResolver가 HTTP 메시지 컨버터를 사용해서 필요한 객체를 생성하는 것이다. (HTTP 메시지 바디에 있는 데이터를 쉽게 조회할 수 있는 이유)
+- 응답의 경우 : `@ResponseBody`와 `HttpEntity`를 처리하는 ReturnValueHandler가 있다. 그리고 여기에서
+HTTP 메시지 컨버터를 호출해서 응답 결과를 만든다. (HTTP 응답 메시지 바디에 데이터를 쉽게 넣을 수 있는 이유)
+
+스프링 MVC는 `@RequestBody``@ResponseBody`가 있으면 `RequestResponseBodyMethodProcessor`(ArgumentResolver)를 사용하며,
+`HttpEntity`가 있으면 `HttpEntityMethodProcessor`(ArgumentResolver)를 사용한다.
+
+```java
+ @ResponseBody
+    @PostMapping("/request-body-string-v4")
+    public String requestBodyStringV4(@RequestBody String messageBody){
+        log.info("messageBody={}", messageBody);
+        return "ok";
+    }
+```
+**컨트롤러는 그저 하나의 메서드에 불과하다.** 따라서 요청 파라미터에 어노테이션과 함께 붙어있지만 결국에는 평범한 문자열인 것이다.
+컨트롤러는 자바에서 지원하는 여러 타입의 매개변수를 통해 값을 처리하는 메서드이고, 실제 HTTP 요청에서 들어오는 메시지를 적절하게 변환시키는
+존재가 필요한 것이다. **컨트롤러에 여러 어노테이션을 붙임으로써 다양한 요청 파라미터를 처리할 수 있다고 해서 컨트롤러가 자동으로 타입을 바꾸고
+인식하는 것이 아님을 주의하자! 그 뒤에는 숨은 조력자들이 늘 도와주고 있으며, 컨트롤러는 정해진 업무를 수행하기 위한 메서드에 불과하다.**
 
 
 
