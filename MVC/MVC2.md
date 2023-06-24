@@ -1,6 +1,8 @@
 # Contents Of MVC2
 - [타임 리프](#타임-리프)
   - [텍스트 - text,utext](#텍스트---text-utext)
+  - [변수 - SpringEL](#변수---springel)
+  - [유틸리티 객체와 날짜](#유틸리티-객체와-날짜)
 
 
 ###### Reference
