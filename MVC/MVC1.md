@@ -1,4 +1,4 @@
-# Contents Of Http
+# Contents Of MVC1
 - [서블릿](#서블릿의-역할)
   - [서블릿을 통해 처리하는 HTTP 메서드](#get-요청)
   - [서블릿을 이용한 HTTP 응답 처리](#http-응답처리)
