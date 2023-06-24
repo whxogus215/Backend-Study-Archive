@@ -85,3 +85,98 @@ HTML 문서는 `<``>` 같은 특수 문자를 기반으로 정의된다. 따라�
 
 하지만 실제 서비스 개발에서 Escape를 사용하지 않으면 HTML이 정상적으로 렌더링되지 않을 수 있다. 따라서 escape 적용을
 기본으로 하되, 꼭 필요한 경우에만 Unescape를 사용하는 것을 권장한다.
+
+### 변수 - SpringEL
+변수는 `${...}` 형식으로 사용할 수 있다. 보통 Model을 통해 넘어온 값들을 바인딩하기 위해 많이 사용된다.
+```java
+@GetMapping("/variable")
+public String variable(Model model) {
+   User userA = new User("userA", 10);
+   User userB = new User("userB", 20);
+   
+   List<User> list = new ArrayList<>();
+   list.add(userA);
+   list.add(userB);
+   
+   Map<String, User> map = new HashMap<>();
+   map.put("userA", userA);
+   map.put("userB", userB);
+   
+   model.addAttribute("user", userA);
+   model.addAttribute("users", list);
+   model.addAttribute("userMap", map);
+   return "basic/variable";
+}
+```
+```html
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+ <meta charset="UTF-8">
+ <title>Title</title>
+</head>
+<body>
+<h1>SpringEL 표현식</h1>
+  <ul>Object
+   <li>${user.username} = <span th:text="${user.username}"></span></li>
+   <li>${user['username']} = <span th:text="${user['username']}"></span></li>
+   <li>${user.getUsername()} = <span th:text="${user.getUsername()}"></span></
+  li>
+  </ul>
+  <ul>List
+   <li>${users[0].username} = <span th:text="${users[0].username}"></
+  span></li>
+   <li>${users[0]['username']} = <span th:text="${users[0]['username']}"></
+  span></li>
+   <li>${users[0].getUsername()} = <span th:text="$
+  {users[0].getUsername()}"></span></li>
+  </ul>
+  <ul>Map
+   <li>${userMap['userA'].username} = <span th:text="$
+  {userMap['userA'].username}"></span></li>
+   <li>${userMap['userA']['username']} = <span th:text="${userMap['userA']
+  ['username']}"></span></li>
+   <li>${userMap['userA'].getUsername()} = <span th:text="$
+  {userMap['userA'].getUsername()}"></span></li>
+  </ul>
+</body>
+</html>
+```
+- `user.username` : user 객체의 username이라는 변수를 프로퍼티 접근( = `user.getUsername()`)
+- `user['username']` : 위와 동일
+- `user.getUsername()` : user 객체의 `getUsername()` 메서드를 직접 호출
+
+- `users[0].username` : List 인덱스의 접근 방법으로 그 뒤로 변수 접근은 위와 동일하다.
+- `userMap['userA'].username` : Map에서 Key 값으로 userA를 찾은 뒤, 변수에 접근한다.
+
+#### 지역변수 선언
+`th:with`를 사용하면 지역 변수를 선언해서 사용할 수 있다. 다만 해당 문법이 사용된 태그 안에서만 사용이 가능하다.
+```html
+<h1>지역 변수 - (th:with)</h1>
+<div th:with="first=${users[0]}">
+ <p>처음 사람의 이름은 <span th:text="${first.username}"></span></p>
+</div>
+```
+- 이 경우에는 `div` 태그 안에서만 사용이 가능하다.
+
+### 유틸리티 객체와 날짜
+타임리프는 문자, 숫자, 날짜, URI 등을 편리하게 다루는 다양한 유틸리티 객체들을 제공한다.
+
+#### 타임리프 유틸리티 객체들
+- `#message` : 메시지, 국제화 처리
+- `#uris` : URI 이스케이프 지원
+- `#dates` : java.util.Date 서식 지원
+- `#calendars` : java.util.Calendar 서식 지원
+- `#temporals` : 자바8 날짜 서식 지원
+- `#numbers` : 숫자 서식 지원
+- `#strings` : 문자 관련 편의 기능
+- `#objects` : 객체 관련 기능 제공
+- `#bools` : boolean 관련 기능 제공
+- `arrays` : 배열 관련 기능 제공
+- `#lists , #sets , #maps` : 컬렉션 관련 기능 제공
+- `#ids` : 아이디 처리 관련 기능 제공, 뒤에서 설명
+
+> 타임리프 유틸리티 객체 : https://www.thymeleaf.org/doc/tutorials/3.0/usingthymeleaf.html#expression-utility-objects  
+> 유틸리티 객체 예시 : https://www.thymeleaf.org/doc/tutorials/3.0/usingthymeleaf.html#appendix-b-expression-utility-objects
+
+이런 유틸리티의 경우, 필요에 따라 매뉴얼에서 찾아 사용하는게 더욱 효과적이다.
