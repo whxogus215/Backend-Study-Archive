@@ -3,6 +3,9 @@
   - [텍스트 - text,utext](#텍스트---text-utext)
   - [변수 - SpringEL](#변수---springel)
   - [유틸리티 객체와 날짜](#유틸리티-객체와-날짜)
+  - [URL 링크](#url-링크)
+  - [리터럴](#리터럴)
+  - [연산](#연산)
 
 
 ###### Reference
@@ -76,8 +79,8 @@ HTML 문서는 `<``>` 같은 특수 문자를 기반으로 정의된다. 따라�
 특수 문자들을 주의해서 사용해야 한다.
 
 - HTML 엔티티 : 웹 브라우저는 `<`를 태그의 시작으로 인식한다. 즉, `<` 같은 특수문자를 태그의 시작이 아닌 단순한
-문자로 표현하는 것이 필요한데 이를 HTML 엔티티라고 한다. ex) `<` -> `&lt;`(HTML 엔티티)
-- `<`가 `&lt;`라는 HTML 엔티티로 변경하는 것을 **이스케이프(Escape)**라고 한다.
+문자로 표현하는 것이 필요한데 이를 HTML 엔티티라고 한다. ex) `<` -> `&``lt`;(HTML 엔티티)
+- `<`가 `&``lt`;라는 HTML 엔티티로 변경하는 것을 **이스케이프(Escape)**라고 한다.
 - 따라서 특수문자를 HTML 파일이 아닌 다른 곳에서 문자열로 담아서 출력할 경우, 이처럼 이스케이프가 적용된다.
 
 #### Unescape
@@ -182,3 +185,135 @@ public String variable(Model model) {
 > 유틸리티 객체 예시 : https://www.thymeleaf.org/doc/tutorials/3.0/usingthymeleaf.html#appendix-b-expression-utility-objects
 
 이런 유틸리티의 경우, 필요에 따라 매뉴얼에서 찾아 사용하는게 더욱 효과적이다.
+
+### URL 링크
+타임리프에서 URL을 생성할 때는 `@{...}` 문법을 사용하면 된다. 타임리프 속성은 `th:href`이다.
+```java
+@GetMapping("/link")
+public String link(Model model) {
+    model.addAttribute("param1", "data1");
+    model.addAttribute("param2", "data2");
+    
+    return "basic/link";
+}
+```
+```html
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<h1>URL 링크</h1>
+<ul>
+    <li><a th:href="@{/hello}">basic url</a></li>
+    <li><a th:href="@{/hello(param1=${param1}, param2=${param2})}">hello query param</a></li>
+    <li><a th:href="@{/hello/{param1}/{param2}(param1=${param1}, param2=${param2})}">path variable</a></li>
+    <li><a th:href="@{/hello/{param1}(param1=${param1}, param2=${param2})}">path variable + query parameter</a></li>
+</ul>
+</body>
+</html>
+```
+1. `@{/hello}` : `localhost:8080/hello`로 연결된다.
+2. `@{/hello(param1=${param1}, param2=${param2})}` : `localhost:8080/hello?param1=data1&param2=data2`로 연결된다.
+  - 쿼리 파라미터를 사용해야 할 경우, 소괄호와 함께 `${...}` 문법을 사용한다.
+3. `@{/hello/{param1}/{param2}(param1=${param1}, param2=${param2})}` : `localhost:8080/hello/data1/data2`로 연결된다.
+  - Path Variable의 경우, 기존의 컨트롤러에서 사용했던 것처럼 { }를 활용하며 마지막에 소괄호와 `@{...}` 문법을 통해 바인딩을 한다.
+4. `@{/hello/{param1}(param1=${param1}, param2=${param2})}` : `localhost:8080/data1?param2=data`로 연결된다.
+  - {...}로 덮인 param1은 Path Variable로 동작하며, param2는 소괄호에 있기 때문에 쿼리 파라미터로 동작한다.
+
+### 리터럴
+리터럴은 소스 코드 상에 고정된 값을 말하는 용어이다. `"Hello", 10, 20` 등이 문자 혹은 숫자 리터럴이다.
+- 문자 : `hello`
+- 숫자 : `10`
+- 불린 : `true, false`
+- null : `null`
+
+**타임 리프에서 문자 리터럴은 항상 `'(작은 따옴표)`로 감싸야 한다.** ex) `<span th:text="'hello'">`  
+만약 문자가 공백없이 쭉 이어진다면 하나의 토큰으로 인지하기 때문에 작은 따옴표를 생략할 수 있다.  
+ex) `A-Z , a-z , 0-9 , [] , . , - , _`  
+하지만 문자열에 공백이 있을 경우, 반드시 작은 따옴표로 감싸야 한다.  
+ex) `<span th:text="hello world!"></span>` -> `<span th:text="'hello world!'"></span>`
+
+```html
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+ <meta charset="UTF-8">
+ <title>Title</title>
+</head>
+<body>
+<h1>리터럴</h1>
+<ul>
+ <!--주의! 다음 주석을 풀면 예외가 발생함-->
+<!-- <li>"hello world!" = <span th:text="hello world!"></span></li>-->
+ <li>'hello' + ' world!' = <span th:text="'hello' + ' world!'"></span></li>
+ <li>'hello world!' = <span th:text="'hello world!'"></span></li>
+ <li>'hello ' + ${data} = <span th:text="'hello ' + ${data}"></span></li>
+ <li>리터럴 대체 |hello ${data}| = <span th:text="|hello ${data}|"></span></li>
+</ul>
+</body>
+</html>
+```
+문자끼리 덧셈도 가능하며, 이러한 코드 작성이 번거로울 경우를 대비해 리터럴 대체 문법을 사용할 수 있다.  
+`<span th:text="|hello ${data}|">` : 여기서 data는 컨트롤러에서 넘겨준 Model의 속성 이름이다.
+
+### 연산
+타임리프 연산은 자바와 크게 다르지 않다. HTML 안에서 사용하기 때문에 HTML 엔티티 사용만 주의하면 된다.
+```html
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+ <meta charset="UTF-8">
+ <title>Title</title>
+</head>
+<body>
+<ul>
+ <li>산술 연산
+   <ul>
+     <li>10 + 2 = <span th:text="10 + 2"></span></li>
+     <li>10 % 2 == 0 = <span th:text="10 % 2 == 0"></span></li>
+   </ul>
+ </li>
+ <li>비교 연산
+   <ul>
+     <li>1 > 10 = <span th:text="1 &gt; 10"></span></li> <!-- >가 아니라 `&gt`;이다. 렌더링과정에서 >로 보인 것임.  -->
+     <li>1 gt 10 = <span th:text="1 gt 10"></span></li>
+     <li>1 >= 10 = <span th:text="1 >= 10"></span></li>
+     <li>1 ge 10 = <span th:text="1 ge 10"></span></li>
+     <li>1 == 10 = <span th:text="1 == 10"></span></li>
+     <li>1 != 10 = <span th:text="1 != 10"></span></li>
+   </ul>
+ </li>
+ <li>조건식
+   <ul>
+      <li>(10 % 2 == 0)? '짝수':'홀수' = <span th:text="(10 % 2 == 0)? '짝수':'홀수'"></span></li>
+   </ul>
+ </li>
+ <li>Elvis 연산자
+   <ul>
+     <li>${data}?: '데이터가 없습니다.' = <span th:text="${data}?: '데이터가없습니다.'"></span></li>
+     <li>${nullData}?: '데이터가 없습니다.' = <span th:text="${nullData}?: '데이터가 없습니다.'"></span></li>
+   </ul>
+ </li>
+ <li>No-Operation
+   <ul>
+     <li>${data}?: _ = <span th:text="${data}?: _">데이터가 없습니다.</span></li>
+     <li>${nullData}?: _ = <span th:text="${nullData}?: _">데이터가 없습니다.</span></li>
+   </ul>
+ </li>
+</ul>
+</body>
+</html>
+```
+연산 결과 값을 HTML에 출력하는 것이기 때문에 `th:text` 속성을 사용한다. 단순 연산의 경우, 자바와 동일하나
+비교 연산(`<`,`>`)의 경우에는 HTML 엔티티를 사용해야 한다. ex) >가 아니라 `&``gt`;를 사용해야 한다. (> 을 써도 잘 동작하기는 한다.) 조건식도 자바 문법과 동일하다. (? True : False)
+
+Elvis 연산자 : 조건식을 간단화한 버전으로, ? 다음에 오는 값은 조건문이 False일 경우(값이 없을 경우)에 실행되는 문구이다.
+위 예시에서 ${data} 값이 있기 때문에 `데이터가 없습니다.`가 출력되지 않고 있는 값이 출력된다. 하지만 ${nullData}의 경우,
+값이 없기 때문에 `데이터가 없습니다.`가 출력된다.
+
+No Operation : `_`를 사용하며, 이것이 동작됐을 때는 No Operation, 타임리프가 실행되지 않는 것처럼 동작한다. 즉,
+HTML의 내용을 그대로 출력한다. 위 예시에서 ${data}의 경우, 값이 있기 때문에 No Operation이 실행되지 않지만, ${nullData}의 경우,
+값이 없기 때문에 No Operation이 실행되어 HTML 태그에 있는 <span> 내용이 그대로 출력된다.
