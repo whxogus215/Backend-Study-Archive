@@ -6,7 +6,12 @@
   - [URL 링크](#url-링크)
   - [리터럴](#리터럴)
   - [연산](#연산)
-
+  - [속성 값 설정](#속성-값-설정)
+  - [반복](#반복)
+  - [조건식](#조건부-평가)
+  - [주석](#주석)
+  - [블록](#블록)
+  - [자바스크립트 인라인](#자바스크립트-인라인)
 
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 2편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-2/dashboard
@@ -317,3 +322,175 @@ Elvis 연산자 : 조건식을 간단화한 버전으로, ? 다음에 오는 값
 No Operation : `_`를 사용하며, 이것이 동작됐을 때는 No Operation, 타임리프가 실행되지 않는 것처럼 동작한다. 즉,
 HTML의 내용을 그대로 출력한다. 위 예시에서 ${data}의 경우, 값이 있기 때문에 No Operation이 실행되지 않지만, ${nullData}의 경우,
 값이 없기 때문에 No Operation이 실행되어 HTML 태그에 있는 <span> 내용이 그대로 출력된다.
+
+### 속성 값 설정
+타임리프는 HTML 태그에 `th:*` 속성을 지정하는 방식으로 동작한다. 즉, `*`인 기존 속성을 `th:*` 타임리프 속성으로
+대체하는 것이다.(서버에서 렌더링되었을 때) 기존에 있던 속성을 대체하는 것이 일반적이며, 만약 기본 속성이 없는 경우라면 새로 만든다.  
+ex) `<input type="text" name="mock" th:name="userA" />` ->(렌더링 후) `<input type="text" name="userA" />`
+
+#### 속성 추가
+1. `th:attrappend` : 속성 값의 뒤에 추가한다.
+  - `<input type="text" class="text" th:attrappend="class='large'" /><br/>` -> `<input type="text" class="textlarge" /><br/>`
+2. `th:attrprepend` : 속성 값의 앞에 추가한다.
+  - `<input type="text" class="text" th:attrprepend="class='large'" /><br/>` -> `<input type="text" class="largetext" /><br/>`
+3. `th:classappend` : class 속성 값의 뒤에 추가한다. 자동으로 공백이 추가된다.
+  - `<input type="text" class="text" th:classappend="large" /><br/>` -> `<input type="text" class="text large" /><br/>`
+
+#### checked 처리
+HTML에서는 ` <input type="checkbox" name="active" checked="false" />` 처럼 태그에 `checked` 속성이 있기만 해도
+체크 처리가 되어있다. 따라서 `th:checked` 속성을 사용할 경우, `false`라면 `checked` 속성 자체를 제거한다.  
+ex) `<input type="checkbox" name="active" th:checked="false" />` ->(렌더링 후) `<input type="checkbox" name="active" />`
+
+### 반복
+타임리프에서 태그의 반복 출력은 `th:each`를 사용한다. Model을 통해 받은 여러 값들을 `th:each = 변수 : ${data}` 형식으로
+받으며, 자바의 Enhanced For 문과 유사하다.
+```html
+<table border="1">
+ <tr>
+   <th>username</th>
+   <th>age</th>
+ </tr>
+ <tr th:each="user : ${users}">
+   <td th:text="${user.username}">username</td>
+   <td th:text="${user.age}">0</td>
+ </tr>
+</table>
+```
+`th:each`는 `List` 뿐만 아니라 배열, `Iterable`, `Enumeration`을 구현한 모든 객체를 반복에 사용할 수 있다.
+`Map`도 가능한데, 이 때 변수에 담기는 값은 `Map.Entry`이다.
+
+#### 반복 상태 유지
+반복의 두 번째 파라미터를 설정하여 반복되는 변수의 상태를 출력할 수 있다. 두 번째 파라미터는 생략이 가능한데,
+`지정한 변수명 + Stat`일 경우, 생략이 가능하다. 즉, `<tr th:each = "user : ${users}">`라면 두 번째 파라미터는
+`userStat`으로 생략이 가능하다.(다른 변수로 지정 가능) 이 때, Stat으로 출력할 수 있는 값의 종류는 다음과 같다.
+- index : 0부터 시작하는 값
+- count : 1부터 시작하는 값
+- size : 전체 사이즈
+- even , odd : 홀수, 짝수 여부( boolean )
+- first , last :처음, 마지막 여부( boolean )
+- current : 현재 객체  
+
+`index`나 `count`를 통해 순번을 함께 출력할 수도 있다. 혹은, 데이터의 순서에 따라 로직을 수행할 수 있도록
+`even, odd`를 활용할 수도 있다.
+
+### 조건부 평가
+타임리프의 조건식 : `if`,`unless`
+```html
+<tr th:each="user, userStat : ${users}">
+   <td th:text="${userStat.count}">1</td>
+   <td th:text="${user.username}">username</td>
+   <td>
+     <span th:text="${user.age}">0</span>
+     <span th:text="'미성년자'" th:if="${user.age lt 20}"></span>
+     <span th:text="'미성년자'" th:unless="${user.age ge 20}"></span>
+   </td>
+ </tr>
+```
+- `if`는 조건이 True일 때, 렌더링하고, `unless`는 조건이 False일 때, 렌더링한다.
+- 조건에 맞지 않는 태그는 아예 렌더링이 되지 않고 사라진다.
+```html
+<tr th:each="user, userStat : ${users}">
+   <td th:text="${userStat.count}">1</td>
+   <td th:text="${user.username}">username</td>
+   <td th:switch="${user.age}">
+     <span th:case="10">10살</span>
+     <span th:case="20">20살</span>
+     <span th:case="*">기타</span>
+   </td>
+ </tr>
+```
+조건문에는 switch문 또한 사용이 가능하다. `*`는 만족하는 조건이 없을 때 사용하는 디폴트이다.
+
+### 주석
+```html
+<h1>1. 표준 HTML 주석</h1>
+<!--
+<span th:text="${data}">html data</span>
+-->
+
+<h1>2. 타임리프 파서 주석</h1>
+<!--/* [[${data}]] */-->
+<!--/*-->
+<span th:text="${data}">html data</span>
+<!--*/-->
+
+<h1>3. 타임리프 프로토타입 주석</h1>
+<!--/*/
+<span th:text="${data}">html data</span>
+/*/-->
+```
+1. 표준 HTML 주석 : 렌더링 시 주석이 소스에 그대로 남아있다.
+2. 타임리프 파서 주석 : 기존 HTML 주석에 `/*`,`*/`이 추가된 형태로, 렌더링 후에 소스에도 완전히 사라진다.
+즉, 이것이 타임리프의 주석인 것이다.
+3. 타임리프 프로토타입 주석 : 렌더링이 되지 않은 채, 웹 브라우저에서 열면 이는 HTML 주석처리가 되어 보이지 않는다.
+하지만 렌더링하게 되면 주석처리가 되지 않고 정상 렌더링 된다. 즉, **렌더링 한 경우에만 보이도록 하는 기능이다.**
+
+### 블록
+`th:block`은 타임리프의 유일한 자체 태그이다.
+```html
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+ <meta charset="UTF-8">
+ <title>Title</title>
+</head>
+<body>
+<th:block th:each="user : ${users}">
+    <div>
+        사용자 이름1 <span th:text="${user.username}"></span>
+        사용자 나이1 <span th:text="${user.age}"></span>
+    </div>
+    <div>
+        요약 <span th:text="${user.username} + ' / ' + ${user.age}"></span>
+    </div>
+</th:block>
+</body>
+</html>
+```
+타임리프는 HTML 태그의 속성 값으로 설정하기 때문에 위 처럼 적용해야 하는 태그가 많을 경우, 일일이 속성을 적용하기에
+번거롭거나 애매한 경우가 있다. 즉, block 단위에 타임리프 속성을 적용해야 하는 경우에 사용되며, 렌더링 후에 `<block>` 태그는 제거된다.
+쉽게 말해, block 단위로 타임리프 값을 적용해야 하는 경우 사용한다.
+
+### 자바스크립트 인라인
+`<script>`에서 타임리프를 편리하게 사용할 수 있도록 제공하는 기능이며, `<script th:inline="javascript">`로 사용한다.
+```html
+<!-- 자바스크립트 인라인 사용 전 -->
+<script>
+   var username = [[${user.username}]];
+   var age = [[${user.age}]];
+   //자바스크립트 내추럴 템플릿
+   var username2 = /*[[${user.username}]]*/ "test username";
+   //객체
+   var user = [[${user}]];
+</script>
+<!-- 자바스크립트 인라인 사용 후 -->
+<script th:inline="javascript">
+   var username = [[${user.username}]];
+   var age = [[${user.age}]];
+   //자바스크립트 내추럴 템플릿
+   var username2 = /*[[${user.username}]]*/ "test username";
+   //객체
+   var user = [[${user}]];
+</script>
+```
+1. 인라인이 적용되면 문자에 자동으로 `" "`가 붙는다.
+2. 내추럴 템플릿 형태를 유지할 수 있도록 지원한다. 즉, 값을 할당하는 부분을 주석처리하면 렌더링 시 그 부분이 데이터로 바인딩된다.
+  - `"test username"` -> `${user.username}`
+3. 객체를 할당하게 되면 자동으로 객체를 JSON 타입으로 변환해준다.  
+(인라인 사용 전 : 객체의 toString()이 호출된 값, 인라인 사용 후 : JSON 타입의 객체)
+
+#### 자바스크립트 인라인 each
+```html
+<!-- 자바스크립트 인라인 each -->
+<script th:inline="javascript">
+   [# th:each="user, stat : ${users}"]
+   var user[[${stat.count}]] = [[${user}]];
+   [/]
+</script>
+```
+자바스크립트 변수에 반복문을 사용하여 할당도 가능하다. (`[#] ~ [/]`)
+
+
+
+
+
