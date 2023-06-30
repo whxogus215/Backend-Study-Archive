@@ -12,6 +12,9 @@
   - [주석](#주석)
   - [블록](#블록)
   - [자바스크립트 인라인](#자바스크립트-인라인)
+- [타임리프 - 스프링 통합과 폼](#타임리프---스프링-통합과-폼)
+  - [스프링 통합으로 추가되는 기능들](#스프링-통합으로-추가되는-기능들)
+  - [입력 폼 처리](#입력-폼-처리)
 
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 2편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-2/dashboard
@@ -678,6 +681,98 @@ ex) `<input type="checkbox" name="active" th:checked="false" />` ->(렌더링 �
 주의해야 할 점은 템플릿 레이아웃을 사용했다면 일단 전체적인 틀은 템플릿 레이아웃과 동일하다. 즉, 사용하는 쪽에서
 하는 것은 바인딩에 필요한 태그만 생성해 놓기만 하면 되는 것이다. 위의 경우도 `title` 태그와 `section` 태그를
 생성해놓았고 이것이 템플릿 레이아웃의 형태에서 바인딩된 것이다. **전체적인 틀은 템플릿 레이아웃과 동일함을 주의하자!**
+
+# 타임리프 - 스프링 통합과 폼
+타임리프는 크게 두 가지 매뉴얼을 제공한다.
+- 기본 메뉴얼 : https://www.thymeleaf.org/doc/tutorials/3.0/usingthymeleaf.html
+- 스프링 통합 메뉴얼 : https://www.thymeleaf.org/doc/tutorials/3.0/thymeleafspring.html  
+
+타임리프는 스프링 없이도 동작하지만, 스프링과 통합을 위한 다양한 기능을 편리하게 제공한다. 그리고 이런 부분은
+스프링 백엔드 개발자 입장에서 타임리프를 선택해야 하는 이유이기도 하다.
+
+#### 스프링 통합으로 추가되는 기능들
+- Form 파일을 편리하게 관리할 수 있는 추가 속성을 지원한다.
+  - `th:object`, `th:field` 등
+- Form 컴포넌트 기능
+  - checkbox, radio, buttons, List 등을 편리하게 사용할 수 있는 기능을 지원한다.
+- 스프링의 메시지, 국제화 기능의 편리한 통합
+- 스프링의 검증, 오류 처리 통합
+- 스프링의 변환 서비스 통합(ConversionService)
+
+이처럼 스프링과 통합된 타임리프를 사용하기 위해서는 타임리프 템플릿 엔진을 스프링 빈에 등록하고, 타임리프용 뷰 리졸버도
+스프링 빈으로 등록해야 한다. 타임리프 자체는 스프링 없이도 동작할 수 있기 때문에 스프링과 통합된 다양한 기능을 활용하기 위해서는
+당연히 템플릿 엔진과 뷰 리졸버 객체를 스프링 빈에 등록해야하는 절차가 필요하다.  
+- https://www.thymeleaf.org/doc/tutorials/3.0/thymeleafspring.html#the-springstandard-dialect
+- https://www.thymeleaf.org/doc/tutorials/3.0/thymeleafspring.html#views-and-view-resolvers
+
+링크에서 보다시피 절차가 복잡하고 방대하다. 하지만 스프링 부트를 사용하면 이러한 것들을 다 자동으로 설정해준다.
+(스프링 부트를 사용하는 이유 중 하나 : 편리함) `build.gradle`에 `implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'`
+이 있으면 Gradle에서 타임리프와 관련된 라이브러리를 다운로드 받으며, 스프링 부트는 앞서 설명한 타임리프와 관련된
+설정용 스프링 빈을 자동으로 등록해준다.
+
+#### 입력 폼 처리
+`th:object`를 사용하면 모델로 넘어온 객체에 접근할 수 있다.(커맨드 객체) 그리고 여기에 있는 객체 변수를
+접근하기 위해서는 `${객체.변수}` 혹은 `*{변수}(선택변수)`를 사용한다. 이는 보통 `th:field`와 함께 사용되며,
+이렇게 했을 때, html 태그의 속성인 `id`,`name`,`value`를 자동으로 생성해준다. 이는 단순히 편리한 기능이기만 한 것 같지만
+이후 검증, Validation에서 유용하게 사용된다.
+```java
+@GetMapping("/add")
+public String addForm(Model model) {
+     model.addAttribute("item", new Item());
+     return "form/addForm";
+}
+```
+```html
+<form action="item.html" th:action th:object="${item}" method="post">
+ <div>
+   <label for="itemName">상품명</label>
+   <input type="text" id="itemName" th:field="*{itemName}" class="formcontrol" placeholder="이름을 입력하세요">
+ </div>
+ <div>
+   <label for="price">가격</label>
+   <input type="text" id="price" th:field="*{price}" class="form-control" placeholder="가격을 입력하세요">
+ </div>
+ <div>
+   <label for="quantity">수량</label>
+   <input type="text" id="quantity" th:field="*{quantity}" class="formcontrol" placeholder="수량을 입력하세요">
+ </div>
+```
+먼저 컨트롤러에서 Model을 넘겨준다. 그리고 이를 `Form` 태그에서 활용할 때는 `th:object` 속성을 통해 객체를 가져온다.
+그 다음 `id`와 `name`을 지정해야 하는 태그에 `th:field="*{변수}`를 사용한다. 이 때 컨트롤러에서 단순히 빈 객체를
+넘겨줘야 하지만 이는 큰 비용이 들지 않는다. `th:object`와 `th:field`를 사용했을 때의 장점 중 하나는 `name` 이나 `id` 속성을
+잘못 입력했을 때 오류를 방지할 수 있다는 것이다.
+
+```html
+렌더링 전
+<input type="text" id="itemName" th:field="*{itemName}" class="form-control" placeholder="이름을 입력하세요">
+
+렌더링 후
+<input type="text" id="itemName" class="form-control" placeholder="이름을 입력하세요" name="itemName" value="">
+```
+렌더링 결과에서 알 수 있듯이 `name` 및 `value` 속성이 추가되었다. 물론 `id`도 생략이 가능하다
+
+```html
+수정 HTML 파일
+<form action="item.html" th:action th:object="${item}" method="post">
+ <div>
+   <label for="id">상품 ID</label>
+   <input type="text" id="id" th:field="*{id}" class="form-control" readonly>
+ </div>
+ <div>
+   <label for="itemName">상품명</label>
+   <input type="text" id="itemName" th:field="*{itemName}" class="formcontrol">
+ </div>
+ <div>
+   <label for="price">가격</label>
+   <input type="text" id="price" th:field="*{price}" class="form-control">
+ </div>
+ <div>
+   <label for="quantity">수량</label>
+   <input type="text" id="quantity" th:field="*{quantity}" class="formcontrol">
+ </div>
+```
+수정 HTML 파일의 경우, `id`, `name`, `value` 등 신경써야 하는 속성들이 많은데 이를 하나의 속성 값으로 대체할 수 있다.
+
 
 
 
