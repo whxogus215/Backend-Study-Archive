@@ -18,6 +18,12 @@
   - [체크박스 - 단일1](#체크박스---단일-1)
   - [체크박스 - 단일2](#체크박스---단일-2)
   - [체크박스 - 멀티](#체크박스---멀티)
+  - [라디오 버튼](#라디오-버튼)
+  - [셀렉트 박스](#셀렉트-박스)
+- [메시지, 국제화](#메시지-국제화)
+  - [메시지](#메시지)
+  - [국제화](#국제화)
+  - [스프링 메시지 소스 설정](#스프링-메시지-소스-설정)
 
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 2편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-2/dashboard
@@ -944,6 +950,117 @@ public Map<String, String> regions() {
 > prev(라벨의 왼쪽 가리킴) : 체크박스 라벨, next(라벨의 오른쪽 가리킴) : 라벨 체크박스
 > prev나 next나 동적으로 생성되는 id 값은 동일하다 `region + 숫자`
 
+### 라디오 버튼
+라디오 버튼은 여러 선택지 중에서 하나를 선택할 수 있는 버튼 기능이다. 이 경우의 자바의 ENUM 클래스를 활용한다.
+```java
+public enum ItemType {
+
+  BOOK("도서"), FOOD("음식"), ETC("기타");
+
+  private final String description;
+
+  ItemType(String description) {
+    this.description = description;
+  }
+
+  // Getter가 필요한 이유 : 타임리프에서 해당 description 변수에 접근하는 것은 프로퍼티 접근법이기
+  // 때문에 실제로 get 함수를 호출하기 때문이다. 따라서 getter가 정의되어 있지 않으면 오류 발생
+  public String getDescription() {
+    return description;
+  }
+}
+
+@ModelAttribute("itemTypes")
+public ItemType[] itemTypes() {
+ return ItemType.values();
+}
+```
+모델에 ENUM의 값을 리스트로 반환하면, 타임리프를 통해 가져다 쓸 수 있다.
+
+```
+item.itemType=FOOD: 값이 있을 때
+item.itemType=null: 값이 없을 때
+```
+라디오 버튼은 체크박스와 달리 이미 선택된 것이 있다면 수정할 때도 하나가 선택되어야 한다. 따라서
+별도의 히든 필드가 필요하지 않는다.
+```html
+<!-- radio button -->
+<div>
+ <div>상품 종류</div>
+   <div th:each="type : ${itemTypes}" class="form-check form-check-inline">
+     <input type="radio" th:field="${item.itemType}" th:value="${type.name()}" class="form-check-input" disabled>
+     <label th:for="${#ids.prev('itemType')}" th:text="${type.description}" class="form-check-label"> BOOK </label>
+   </div>
+</div>
+```
+- `th:field`를 사용하면 id와 name을 자동으로 생성할 뿐만 아니라, 모델의 값과 HTTP 요청 메시지 값을 비교하여 실제로 있는 값에
+자동으로 `checked` 혹은 `selected`를 추가해준다.
+
+### 셀렉트 박스
+```java
+@ModelAttribute("deliveryCodes")
+public List<DeliveryCode> deliveryCodes() {
+   List<DeliveryCode> deliveryCodes = new ArrayList<>();
+   deliveryCodes.add(new DeliveryCode("FAST", "빠른 배송"));
+   deliveryCodes.add(new DeliveryCode("NORMAL", "일반 배송"));
+   deliveryCodes.add(new DeliveryCode("SLOW", "느린 배송"));
+   
+   return deliveryCodes;
+}
+```
+이 메서드는 컨트롤러가 호출될 때마다 항상 호출이된다. 따라서 이 값들을 따로 static으로 생성한 뒤 재사용하는 것도 하나의 방법이다.
+```html
+<!-- SELECT -->
+<div>
+ <div>배송 방식</div>
+ <select th:field="*{deliveryCode}" class="form-select">
+   <option value="">==배송 방식 선택==</option>
+   <option th:each="deliveryCode : ${deliveryCodes}" th:value="${deliveryCode.code}" th:text="${deliveryCode.displayName}">FAST</option>  
+ </select>
+</div>
+```
+- `th:field`를 사용하면 id와 name을 자동으로 생성할 뿐만 아니라, 모델의 값과 HTTP 요청 메시지 값을 비교하여 실제로 있는 값에
+  자동으로 `checked` 혹은 `selected`를 추가해준다.
+
+# 메시지, 국제화
+### 메시지
+메시지란 메시지를 보여주는 것은 아니고, html에서 하드코딩된 값들을 하나의 변수로 관리하는 것이다.
+그러면 나중에 값을 수정해야 할 경우, 일일이 수정하지 않아도 된다. `messages.properties`라는 파일을 사용한다.
+
+`<label for="itemName" th:text="#{item.itemName}"></label>` 이런 식으로 데이터의 key 값을 사용한다.
+### 국제화
+국제화는 메시지에서 더 나아간 개념이다. 나라마다 언어가 다르게 세팅되어야 할 경우 이 기능을 사용한다. 즉,
+`messages.properties`을 나라별로 관리하는 것이다. ex) `messages_en.properties`, `messages_ko.properties`
+### 스프링 메시지 소스 설정
+메시지 관리 기능을 사용하려면 스프링이 제공하는 `MessageSource`를 스프링 빈으로 등록해야 한다.
+```java
+@Bean
+public MessageSource messageSource() {
+ ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
+ messageSource.setBasenames("messages", "errors");
+ messageSource.setDefaultEncoding("utf-8");
+ return messageSource;
+}
+```
+- `basenames` : 설정파일의 이름을 지정한다.
+  - basename이 messages라면 설정파일은 `messages.properties`이다.
+  - 만약, 국제화 기능을 추가한다면 basename 옆에 언어 정보를 추가한다.
+    - `messages_en.properties`,`messages_ko.properties` 등
+  - 파일의 위치는 `/resources/basename.properties`이다.
+
+스프링 부트를 사용한다면 메시지 기능이 자동으로 설정되어 있다. 기본 설정 값은
+`spring.messages.basename=messages`이기 때문에 `messages.properties` 파일을 만들기만 하면 된다.
+스프링 사이트에서 `properties` 문서를 살펴보면 다양한 세팅이 가능하다.
+```
+/resources/messages.properties
+hello=안녕
+hello.name=안녕 {0}
+
+/resources/messages_en.properties
+hello=hello
+hello.name=hello {0}
+```
+이처럼 Key-Value 형태로 값을 저장하게 된다.
 
 
 
