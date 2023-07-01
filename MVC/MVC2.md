@@ -15,6 +15,9 @@
 - [타임리프 - 스프링 통합과 폼](#타임리프---스프링-통합과-폼)
   - [스프링 통합으로 추가되는 기능들](#스프링-통합으로-추가되는-기능들)
   - [입력 폼 처리](#입력-폼-처리)
+  - [체크박스 - 단일1](#체크박스---단일-1)
+  - [체크박스 - 단일2](#체크박스---단일-2)
+  - [체크박스 - 멀티](#체크박스---멀티)
 
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 2편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-2/dashboard
@@ -690,7 +693,7 @@ ex) `<input type="checkbox" name="active" th:checked="false" />` ->(렌더링 �
 타임리프는 스프링 없이도 동작하지만, 스프링과 통합을 위한 다양한 기능을 편리하게 제공한다. 그리고 이런 부분은
 스프링 백엔드 개발자 입장에서 타임리프를 선택해야 하는 이유이기도 하다.
 
-#### 스프링 통합으로 추가되는 기능들
+### 스프링 통합으로 추가되는 기능들
 - Form 파일을 편리하게 관리할 수 있는 추가 속성을 지원한다.
   - `th:object`, `th:field` 등
 - Form 컴포넌트 기능
@@ -710,7 +713,7 @@ ex) `<input type="checkbox" name="active" th:checked="false" />` ->(렌더링 �
 이 있으면 Gradle에서 타임리프와 관련된 라이브러리를 다운로드 받으며, 스프링 부트는 앞서 설명한 타임리프와 관련된
 설정용 스프링 빈을 자동으로 등록해준다.
 
-#### 입력 폼 처리
+### 입력 폼 처리
 `th:object`를 사용하면 모델로 넘어온 객체에 접근할 수 있다.(커맨드 객체) 그리고 여기에 있는 객체 변수를
 접근하기 위해서는 `${객체.변수}` 혹은 `*{변수}(선택변수)`를 사용한다. 이는 보통 `th:field`와 함께 사용되며,
 이렇게 했을 때, html 태그의 속성인 `id`,`name`,`value`를 자동으로 생성해준다. 이는 단순히 편리한 기능이기만 한 것 같지만
@@ -773,9 +776,173 @@ public String addForm(Model model) {
 ```
 수정 HTML 파일의 경우, `id`, `name`, `value` 등 신경써야 하는 속성들이 많은데 이를 하나의 속성 값으로 대체할 수 있다.
 
+### 체크박스 - 단일 1
+```html
+<!-- single checkbox -->
+<div>판매 여부</div>
+<div>
+ <div class="form-check">
+   <input type="checkbox" id="open" name="open" class="form-check-input">
+   <label for="open" class="form-check-label">판매 오픈</label>
+ </div>
+</div>
+```
+```java
+@PostMapping("/add")
+public String addItem(Item item, RedirectAttributes redirectAttributes) {
+   log.info("item.open={}", item.getOpen());
+   ...
+}
+```
+-> `@Slf4j` 어노테이션을 통해 로그 찍는 방법  
+HTML Form에서 체크 박스를 체크하면 `open=on`이라는 값이 넘어간다. 그리고 스프링은 이를 `true` 타입으로 변환한다.
+(스프링 타입 컨버터 기능) 따라서 로그를 출력했을 때, True or Null이 찍힌다.
 
+**만약 체크 박스를 체크하지 않는다면** HTTP 메시지 바디에 `open` 필드가 포함되지 않는다. 즉, 서버 측으로 전송자체가
+안된다. 따라서 서버에서는 값이 없다고 판단하기 때문에 `null`을 출력하는 것이다. 여기서 발생하는 문제점은 클라이언트에서
+서버 측으로 값 자체를 보내지 않는다는 것이다. 체크가 안되어 있다면 체크가 안되었다는 정보라도 보내줘야 나중에 수정할 일이 생겼을 때
+핸들링이 가능하기 때문이다. 따라서 스프링 MVC는 이 문제를 해결하기 위해 히든 필드인 `_open`을 사용한다. 이는
+체크 여부와 관계없이 항상 전송된다.
 
+- HTML Form 체크표시 : 클라이언트는 `open`과 `_open` 필드를 전송 - 서버에서 체크 판단
+- HTML Form 체크표시 X : 클라이언트는 `_open` 필드만 전송 - 서버에서 체크 안함을 판단
 
+#### 체크 해제를 인식하기 위한 히든 필드
+`<input type="hidden" name="_open" value="on"/>`
+```html
+<!-- single checkbox -->
+<div>판매 여부</div>
+    <div>
+        <div class="form-check">
+         <input type="checkbox" id="open" name="open" class="form-check-input">
+         <input type="hidden" name="_open" value="on"/> <!-- 히든 필드 추가 -->
+         <label for="open" class="form-check-label">판매 오픈</label>
+    </div>
+</div>
+```
+1. 체크박스 체크 시
+  - `open=on & _open = on`이 넘어오고, 스프링 MVC가 `open`에 값이 있다고 판단하며, `_open`은 무시한다.
+  따라서 로그를 찍었을 때 true가 나온다.
+2. 체크박스 미체크 시
+  - `_open = on`이 넘어고, 스프링 MVC는 `_open`만 있는 것을 확인하고 `open` 값이 없다고 판단한다.
+따라서 이 때는 null이 아닌 false를 출력한다.
+
+** `_open`은 히든 필드로써 HTML 파일에 영향을 미치지 않는다. 단지 스프링 MVC가 체크 박스를 판단할 수 있도록
+만든 일종의 장치에 불과하다.**
+
+### 체크박스 - 단일 2
+타임리프를 사용하면 이렇게 히든필드를 일일이 지정하는 번거로움을 피할 수 있다. 타임리프가 제공하는 폼 기능을
+사용하면 이러한 부분을 자동으로 처리할 수 있다. 즉, 렌더링 시 히든필드를 자동으로 생성해준다는 뜻이다.
+```html
+<!-- single checkbox -->
+<div>판매 여부</div>
+<div>
+   <div class="form-check">
+     <input type="checkbox" id="open" th:field="*{open}" class="form-check-input">
+     <label for="open" class="form-check-label">판매 오픈</label>
+   </div>
+</div>
+```
+- `th:field`를 통해 `open` 필드를 자동으로 생성할 수 있다. 이 때 식별자 `*{...}`를 쓸 수 있는건
+form 태그에 `th:object`가 지정되어 있기 때문에 가능한 것이다. 만약 없다면 `${item.open}`을 사용해야 한다.
+```html
+<!-- single checkbox -->
+<div>판매 여부</div>
+<div>
+  <div class="form-check">
+    <input type="checkbox" id="open" class="form-check-input" name="open" value="true">
+    <input type="hidden" name="_open" value="on"/>
+    <label for="open" class="form-check-label">판매 오픈</label>
+  </div>
+</div>
+```
+렌더링 후 HTML 결과 파일이다. 보다시피 히든 타입의 `input` 태그가 생성되었으며 `_open` 필드가 자동으로 생성되어 있다.
+```html
+<!-- single checkbox -->
+<div>판매 여부</div>
+<div>
+ <div class="form-check">
+   <input type="checkbox" id="open" th:field="${item.open}" class="form-check-input" disabled>
+   <label for="open" class="form-check-label">판매 오픈</label>
+ </div>
+</div>
+```
+- 만약, HTML 상세 페이지에서 체크 박스가 수정되지 않도록 하려면 체크 박스에 `disabled` 속성을 추가하면 된다.
+```html
+<!-- single checkbox -->
+<div class="form-check">
+ <input type="checkbox" id="open" class="form-check-input" disabled name="open" value="true" checked="checked">
+ <label for="open" class="form-check-label">판매 오픈</label>
+</div>
+```
+렌더링 후 HTML 결과 파일이다.(페이지 상세 화면) 체크가 되어 있으면 `checked` 속성이 추가되어 있다.
+이 또한 `th:field`를 사용했을 때, `open` 값을 판단하여 true인 경우, 자동으로 체크 처리가 된다.
+
+### 체크박스 - 멀티
+체크 박스가 여러 개인 상태에서, 하나 이상을 체크할 수 있도록 해보자.
+
+```java
+@ModelAttribute("regions")
+public Map<String, String> regions() {
+    Map<String, String> regions = new LinkedHashMap<>();
+    
+    regions.put("SEOUL", "서울");
+    regions.put("BUSAN", "부산");
+    regions.put("JEJU", "제주");
+    
+    return regions;
+}
+```
+먼저 컨트롤러에 `@ModelAttribute`를 사용하여 모델을 추가하면, 컨트롤러가 호출될 때마다 자동으로 모델에 담기게 할 수 있다.
+```html
+<!-- multi checkbox -->
+<div>
+ <div>등록 지역</div>
+  
+ <div th:each="region : ${regions}" class="form-check form-check-inline">
+    <input type="checkbox" th:field="*{regions}" th:value="${region.key}" class="form-check-input">
+    <label th:for="${#ids.prev('regions')}" th:text="${region.value}" class="form-check-label">서울</label>
+ </div>
+</div>
+```
+체크박스가 여러개이기 때문에 `th:each` 반복문을 사용하였다. 이 때 `${regions}`는 컨트롤러에서 추가한 Map 형태의
+모델이다. 마찬가지로 체크박스이기 떄문에 `th:field`를 통해 자동으로 `open` 필드가 생성되도록 하였다.
+그리고 **각각의 체크박스는 name이 같을 수는 있어도, id는 서로 같으면 안된다.** 따라서 반복문을 사용했을 때,
+자동으로 id 값이 구별되도록 하기 위해선 `th:for="${#ids.prev('regions')}"`을 사용한다. 이는 id에 regions를 붙이고 뒤에
+1,2,3 이런식으로 숫자를 부여한다는 뜻이다.
+```html
+ <!-- multi checkbox -->
+        <div>
+            <div>등록 지역</div>
+          
+            <div class="form-check form-check-inline">
+                <input type="checkbox" value="SEOUL"
+                       class="form-check-input" id="regions1" name="regions"><input type="hidden" name="_regions" value="on"/>
+                <label for="regions1"
+                       class="form-check-label">서울</label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input type="checkbox" value="BUSAN"
+                       class="form-check-input" id="regions2" name="regions"><input type="hidden" name="_regions" value="on"/>
+                <label for="regions2"
+                       class="form-check-label">부산</label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input type="checkbox" value="JEJU"
+                       class="form-check-input" id="regions3" name="regions"><input type="hidden" name="_regions" value="on"/>
+                <label for="regions3"
+                       class="form-check-label">제주</label>
+            </div>
+        </div>
+```
+렌더링 후 HTML 결과 화면이다. `th:field`를 반복문에 활용하면 id 값을 자동으로 겹치지 않도록 생성한다. 따라서 `label` 태그에서
+`for` 속성 값으로 `input` 태그에 맞는 `id` 값을 지정해줘야 한다. (그래야 이름을 눌렀을 때도 체크가 된다.) 따라서
+자동으로 생성된 `region + 숫자`와 매칭시키기 위해서 `label` 태그의 `for` 속성을 타임리프로 지정한 것이다.
+따라서 `th:for`를 사용하였고, id를 동적으로 바인딩 시키는 `${#ids.prev('regions')}`를 사용하였다.
+> `${#ids.next('regions')}`를 사용하게 되면 해당 라벨을 눌렀을 때 오른쪽에 있는 체크박스를 체크하게 된다. 즉, prev와 next의 구분은
+라벨과 체크박스의 위치에 따라 결정된다.
+> prev(라벨의 왼쪽 가리킴) : 체크박스 라벨, next(라벨의 오른쪽 가리킴) : 라벨 체크박스
+> prev나 next나 동적으로 생성되는 id 값은 동일하다 `region + 숫자`
 
 
 
