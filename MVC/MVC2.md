@@ -24,6 +24,9 @@
   - [메시지](#메시지)
   - [국제화](#국제화)
   - [스프링 메시지 소스 설정](#스프링-메시지-소스-설정)
+  - [스프링 메시지 소스 사용](#스프링-메시지-소스-사용)
+  - [실제 웹 어플리케이션에 메시지 적용](#실제-웹-어플리케이션에-메시지-적용)
+  - [실제 웹 어플리케이션에 국제화 적용](#웹-애플리케이션에-국제화-적용하기)
 
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 2편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-2/dashboard
@@ -1062,5 +1065,74 @@ hello.name=hello {0}
 ```
 이처럼 Key-Value 형태로 값을 저장하게 된다.
 
+### 스프링 메시지 소스 사용
+```java
+public interface MessageSource {
+    String getMessage(String code, @Nullable Object[] args, @Nullable String defaultMessage, Locale locale);
+    String getMessage(String code, @Nullable Object[] args, Locale locale) throws NoSuchMessageException;
+```
+실제 MessageSource 인터페이스의 메서드를 살펴보면 일부 파라미터를 통해 메시지를 가져오는 것을 알 수 있다.
 
+```java
+@SpringBootTest
+public class MessageSourceTest {
+   @Autowired
+   MessageSource ms;
+   
+   @Test
+   void helloMessage() {
+     String result = ms.getMessage("hello", null, null);
+     assertThat(result).isEqualTo("안녕");
+   }
+}
+```
+Locale 정보가 없을 경우, basename에서 설정한 기본 이름 메시지 파일을 조회한다.
 
+```java
+@Test
+void notFoundMessageCode() {
+ assertThatThrownBy(() -> ms.getMessage("no_code", null, null))
+ .isInstanceOf(NoSuchMessageException.class);
+}
+@Test
+void notFoundMessageCodeDefaultMessage() {
+ String result = ms.getMessage("no_code", null, "기본 메시지", null);
+ assertThat(result).isEqualTo("기본 메시지");
+}
+```
+- 메시지가 없는 경우에는 `NoSuchMessageException`이 발생한다.
+- 메시지가 없더라도, 기본 메시지(`defaultMessage`)를 사용하면 기본 메시지가 반환된다.
+
+### 실제 웹 어플리케이션에 메시지 적용
+`properties` 파일에 메시지를 만든 다음 타임리프를 통해 적용하려면 `#{...}`을 사용하면 된다.
+```messages.properties
+label.item=상품
+label.item.id=상품 ID
+label.item.itemName=상품명
+label.item.price=가격
+label.item.quantity=수량
+
+page.items=상품 목록
+page.item=상품 상세
+page.addItem=상품 등록
+page.updateItem=상품 수정
+
+button.save=저장
+button.cancel=취소
+```
+파일은 Key-Value 형식으로 작성한다. Properties 파일은 자바에서 환경변수를 읽어올 수 있도록 하는 파일 확장자이다.
+```
+<div th:text="#{label.item}"></h2> -> <div>상품</h2>
+```
+이처럼 `th:text`를 통해 타임리프 메시지를 적용할 수 있다. 파일에서 정의한 변수명(Key)을 그대로 가져와서 사용하며
+실제로 출력되는 값은 Value 이다.
+
+만약, 파라미터가 있는 경우에는 다음과 같이 사용할 수 있다.
+```
+hello.name = 안녕 {0} -> <p th:text="#{hello.name(${item.itemName})}"></p>
+```
+{0} 안에 입력한 파라미터 값이 들어가게 된다.
+
+### 웹 애플리케이션에 국제화 적용하기
+만약 웹 브라우저에서 HTTP 요청 헤더의 `Accept-Language` 필드에서 우선순위가 `en`이 높다면
+메시지 파일이 `basename_en.properties`인 것을 사용한다.
