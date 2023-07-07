@@ -1154,8 +1154,10 @@ hello.name = 안녕 {0} -> <p th:text="#{hello.name(${item.itemName})}"></p>
 검증 로직을 개발하는 것이 더욱 어렵고 중요한 작업일 수 있다.
 
 ### 검증 처리 로직 V1
-[성공 사진]
-[실패 사진]
+![검증 성공](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/82c0c371-0be2-4de9-8659-30f97d990310)
+
+![검증 실패](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/0ad2236e-7390-461d-be69-b9687728bc3c)
+
 검증이 실패했을 경우, 실패한 값을 그대로 모델에 담아 다시 View에 전달해야 한다. 따라서 이때는 PRG 패턴이 사용되지 않는다.
 
 ```java
