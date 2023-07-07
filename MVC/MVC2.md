@@ -29,6 +29,9 @@
   - [실제 웹 어플리케이션에 국제화 적용](#웹-애플리케이션에-국제화-적용하기)
 - [검증1 - Validation](#검증-1---validation)
   - [검증이 필요한 이유](#검증이-필요한-이유)
+  - [검증 처리 로직 V1](#검증-처리-로직-v1)
+  - [검증 처리 로직 V2](#검증-처리-로직-v2)
+- [단축키](#단축키-정보)
 
 ###### Reference
 - **(main)** 인프런 김영한 스프링 MVC 2편 : https://www.inflearn.com/course/%EC%8A%A4%ED%94%84%EB%A7%81-mvc-2/dashboard
@@ -1149,3 +1152,201 @@ hello.name = 안녕 {0} -> <p th:text="#{hello.name(${item.itemName})}"></p>
 
 **컨트롤러의 중요한 역할 중 하나는 HTTP 요청이 정상인지 검증하는 것이다.** 정상 로직을 개발하는 것보다 이러한
 검증 로직을 개발하는 것이 더욱 어렵고 중요한 작업일 수 있다.
+
+### 검증 처리 로직 V1
+[성공 사진]
+[실패 사진]
+검증이 실패했을 경우, 실패한 값을 그대로 모델에 담아 다시 View에 전달해야 한다. 따라서 이때는 PRG 패턴이 사용되지 않는다.
+
+```java
+@PostMapping("/add")
+public String addItem(@ModelAttribute Item item, RedirectAttributes redirectAttributes, Model model) {
+ 
+ //검증 오류 결과를 보관
+ Map<String, String> errors = new HashMap<>();
+ //검증 로직
+ if (!StringUtils.hasText(item.getItemName())) {
+ errors.put("itemName", "상품 이름은 필수입니다.");
+ }
+ if (item.getPrice() == null || item.getPrice() < 1000 || item.getPrice() >
+1000000) {
+ errors.put("price", "가격은 1,000 ~ 1,000,000 까지 허용합니다.");
+ }
+ if (item.getQuantity() == null || item.getQuantity() >= 9999) {
+ errors.put("quantity", "수량은 최대 9,999 까지 허용합니다.");
+ }
+ //특정 필드가 아닌 복합 룰 검증
+ if (item.getPrice() != null && item.getQuantity() != null) {
+ int resultPrice = item.getPrice() * item.getQuantity();
+ if (resultPrice < 10000) {
+ errors.put("globalError", "가격 * 수량의 합은 10,000원 이상이어야 합니다. 
+현재 값 = " + resultPrice);
+ }
+ }
+ //검증에 실패하면 다시 입력 폼으로
+ if (!errors.isEmpty()) {
+ model.addAttribute("errors", errors);
+ return "validation/v1/addForm";
+ }
+ //성공 로직
+ Item savedItem = itemRepository.save(item);
+ redirectAttributes.addAttribute("itemId", savedItem.getId());
+ redirectAttributes.addAttribute("status", true);
+ return "redirect:/validation/v1/items/{itemId}";
+}
+```
+클라이언트의 요청 값을 컨트롤러에서 직접 검증하고 성공과 실패시 각각 다른 로직을 수행하는 것을 알 수 있다.
+어떠한 에러가 났는지를 확인할 수 있도록 필드를 설정하였고 이를 Map 타입으로 관리하여 Model에 넘겨준다. 그러면
+이를 View에서 꺼내 오류관련 메시지를 출력하면 된다.
+
+만약 특정 필드의 오류가 아닌 경우엔 `globalError`라는 Key를 사용한다.
+
+검증이 실패하게 되면 다시 입력 폼을 보여주게 된다. 따라서 사용자는 검증 실패 시 계속 입력 폼을 응답으로 받게 된다.
+기존의 PRG 패턴의 경우 에러 페이지를 보여주게 되면서 새로고침시 입력했던 값이 다 사라진다는 단점이 있었다.
+이렇게 검증을 사용하면 입력한 값을 그대로 유지한 채 에러 내용을 보여줄 수 있다.
+
+```html
+<form action="item.html" th:action th:object="${item}" method="post">
+ <div th:if="${errors?.containsKey('globalError')}">
+    <p class="field-error" th:text="${errors['globalError']}">전체 오류 메시지</p>
+ </div>
+    ...
+</form>
+```
+if문을 사용하여, errors라는 이름의 모델 값이 있을 경우, 오류 페이지를 추가하는 방법이다.
+이 때, `?`를 사용한 이유는 errors가 아예 존재하지 않는 null일 수도 있기 때문이다. (GET으로 등록 폼을
+조회했을 때는 errors라는 hashMap이 생성조차 되지 않았기 때문에 null이다.) 따라서 그냥 null에 `.containsKey()`를
+접근하게 되면 `NullPointerException`이 발생하게 된다. 즉. `?.`을 사용하면 해당 객체가 null일 경우 전체를 null로
+반환하게 된다. 그러면 타임리프 문법인 `th:if` 자체가 동작하지 않게 된다.
+> Safe Navigation Operator : https://docs.spring.io/spring-framework/reference/core/expressions/language-ref/operator-safe-navigation.html
+
+### 필드 오류 처리
+```html
+<input type="text" id="itemName" th:field="*{itemName}"
+       th:class="${errors?.containsKey('itemName')} ? 'form-control field-error' : 'form-control'"
+       class="form-control" placeholder="이름을 입력하세요">
+
+<input type="text" th:classappend="${errors?.containsKey('itemName')} ? 'field-error' : _" class="form-control">
+```
+errors에 필드가 존재한다는 것은 에러가 발생했다는 뜻이다. 따라서 key를 조회하는 `containsKey()`를 사용하였고,
+만약 해당 Key가 있을 때 클래스를 추가하는 방법이다. 이를 사용하면 if문 보다 간결하게 사용할 수 있다. `_ (No-Operation)`은
+아무것도 하지 않는다는 뜻이다.
+
+#### 장점
+- 검증 오류가 발생하면 입력 폼을 다시 보여준다.
+- 검증 오류들을 고객에게 친절하게 안내해서 다시 입력할 수 있게 한다.
+- 검증 오류가 발생해도 고객이 입력한 데이터가 유지된다.
+
+#### 단점
+- 뷰 템플릿에서 중복되는 코드가 많다.
+- 잘못된 타입이 들어왔을 경우, 검증을 하지 못한다.
+- 숫자 입력란에 문자가 들어왔을 경우, 이를 그대로 저장한 상태로 고객에게 보여주지 못한다.
+
+### 검증 처리 로직 V2
+스프링이 제공하는 검증  오류 처리 방법을 사용하면 보다 간편하게 작성할 수 있다. 여기서 핵심은 **BindingResult**이다.
+```java
+@PostMapping("/add")
+public String addItemV1(@ModelAttribute Item item, BindingResult bindingResult,RedirectAttributes redirectAttributes) {
+ 
+    if (!StringUtils.hasText(item.getItemName())) {
+ bindingResult.addError(new FieldError("item", "itemName", "상품 이름은
+필수입니다."));
+ }
+ if (item.getPrice() == null || item.getPrice() < 1000 || item.getPrice() >
+1000000) {
+ bindingResult.addError(new FieldError("item", "price", "가격은 1,000 ~ 
+1,000,000 까지 허용합니다."));
+ }
+ if (item.getQuantity() == null || item.getQuantity() > 10000) {
+ bindingResult.addError(new FieldError("item", "quantity", "수량은 최대
+9,999 까지 허용합니다."));
+ }
+ //특정 필드 예외가 아닌 전체 예외
+ if (item.getPrice() != null && item.getQuantity() != null) {
+ int resultPrice = item.getPrice() * item.getQuantity();
+ if (resultPrice < 10000) {
+ bindingResult.addError(new ObjectError("item", "가격 * 수량의 합은
+10,000원 이상이어야 합니다. 현재 값 = " + resultPrice));
+ }
+ }
+ if (bindingResult.hasErrors()) {
+ log.info("errors={}", bindingResult);
+ return "validation/v2/addForm";
+ }
+ //성공 로직
+ Item savedItem = itemRepository.save(item);
+ redirectAttributes.addAttribute("itemId", savedItem.getId());
+ redirectAttributes.addAttribute("status", true);
+ return "redirect:/validation/v2/items/{itemId}";
+}
+```
+마찬가지로 컨트롤러에서 검증 처리를 진행한다. 이 때, 매개변수로 `BindingResult`가 추가된 것을 알 수 있다.
+이는 기존의 errors를 담는 Map 대신에 사용되는 것이다. 모델에 담겨지지 않는 것들을 담는 객체라고 이해하면 된다.
+따라서 **해당 매개변수의 위치가 중요한데, 반드시 `@ModelAttribute` 다음에 와야 한다.**
+
+```java
+if (!StringUtils.hasText(item.getItemName())) {
+ bindingResult.addError(new FieldError("item", "itemName", "상품 이름은 필수입니다."));
+ }
+ 
+if (item.getPrice() == null || item.getPrice() < 1000 || item.getPrice() >1000000) {
+bindingResult.addError(new FieldError("item", "price", "가격은 1,000 ~ 1,000,000 까지 허용합니다."));
+}
+
+if (item.getQuantity() == null || item.getQuantity() > 10000) {
+bindingResult.addError(new FieldError("item", "quantity", "수량은 최대 9,999 까지 허용합니다."));
+}
+```
+기존에 Model에 추가하는 방법이 아닌 `bindingResult` 객체의 `addError` 메서드를 통해 `FieldError`라는 객체를 생성하여
+담아준다. 이 객체에는 `@ModelAttribute`의 이름, 오류가 발생한 필드 이름, 메시지를 담을 수 있다.
+
+```java
+bindingResult.addError(new ObjectError("item", "가격 * 수량의 합은 10,000원 이상이어야 합니다. 현재 값 = " + resultPrice));
+```
+글로벌 오류의 경우에는 `FieldError`가 아닌 `ObjectError`를 생성해서 담는다. 이 때는 필드가 존재하지 않기 때문에
+필드 이름을 넣지 않는다.
+
+```html
+<form action="item.html" th:action th:object="${item}" method="post">
+ <div th:if="${#fields.hasGlobalErrors()}">
+    <p class="field-error" th:each="err : ${#fields.globalErrors()}" th:text="${err}">글로벌 오류 메시지</p>
+ </div>
+ <div>
+   <label for="itemName" th:text="#{label.item.itemName}">상품명</label>
+   <input type="text" id="itemName" th:field="*{itemName}" th:errorclass="field-error" class="form-control" placeholder="이름을 입력하세요">
+     <div class="field-error" th:errors="*{itemName}">
+     상품명 오류
+     </div>
+ </div>
+ <div>
+   <label for="price" th:text="#{label.item.price}">가격</label>
+   <input type="text" id="price" th:field="*{price}" th:errorclass="field-error" class="form-control" placeholder="가격을 입력하세요">
+     <div class="field-error" th:errors="*{price}">
+     가격 오류
+     </div>
+ </div>
+ <div>
+   <label for="quantity" th:text="#{label.item.quantity}">수량</label>
+   <input type="text" id="quantity" th:field="*{quantity}" th:errorclass="field-error" class="form-control" placeholder="수량을 입력하세요">
+     <div class="field-error" th:errors="*{quantity}">
+     수량 오류
+     </div>  
+ </div>
+```
+- `#fields`를 사용하면 스프링의 `BindingResult`를 활용하여 검증 오류를 표현할 수 있다. (타임리프와 스프링의 통합 기능)
+- `th:errors="*{필드 이름}"`을 사용하면 해당 필드에 오류가 있을 경우, 태그를 출력하게 된다. 이는 `th:if`문을 사용하는 것보다
+훨씬 편리하다. 물론 `#fields`를 사용해도 동일하다.
+- `th:errorclass`를 사용하면 `th:field`에서 지정한 필드에 오류가 발생하게 되면 지정한 `class`를 추가한다.
+- 스프링 통합 문법인 field를 사용하면 이처럼 간편하게 사용할 수 있고, 개발자가 일일이 지정하지 않아도 알아서 field
+이름을 조회해서 동작하게 된다.
+
+> https://www.thymeleaf.org/doc/tutorials/3.0/thymeleafspring.html#validation-and-error-messages  
+> 해당 문서를 확인하면 보다 쉽게 이해할 수 있다.
+
+
+
+
+
+
+### 단축키 정보
+- `컨트롤+쉬프트+R` : Replace - 특정 단어를 한번에 변경할 수 있다.
