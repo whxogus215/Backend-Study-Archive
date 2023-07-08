@@ -33,6 +33,9 @@
   - [검증 처리 로직 V2](#검증-처리-로직-v2)
   - [BindingResult](#bindingresult)
   - [사용자 입력 오류 메세지를 화면에 남기는 법](#사용자-입력-오류-메세지를-화면에-남기는-법---fielderror-objecterror)
+  - [오류 코드와 메시지 처리1](#오류-코드와-메시지-처리1)
+  - [오류 코드와 메시지 처리2](#오류-코드와-메시지-처리2)
+  - [오류 코드와 메시지 처리3](#오류-코드와-메시지-처리3)
 - [단축키](#단축키-정보)
 
 ###### Reference
@@ -1408,7 +1411,6 @@ public FieldError(String objectName, String field, @Nullable Object rejectedValu
 `th:field="*{price}"` : 타임리프의 `th:field`는 매우 유용하고 똑똑한 기능이다. 만약 정상적으로
 검증이 통과하는 경우, Model(위 코드에서는 item)의 값을 사용한다. 하지만 검증 실패로 인한 오류가 발생할 경우,
 `FieldError`에서 보관한 값을 사용해서 출력한다.
-
 ```html
  <div>
     <label for="price" th:text="#{label.item.price}">가격</label>
@@ -1428,5 +1430,113 @@ Integer가 들어와야 하는 곳에 String 데이터가 들어왔다면 이를
 그리고 이를 `BindingResult`에 담아서 컨트롤러에 호출한다. 따라서 BindingResult의 위치가 `@ModelAttribute` 다음에
 와야 하는 것이다. (Model에 담기지 않은 값들이 BindingResult에 들어가기 때문)
 
+### 오류 코드와 메시지 처리1
+```java
+public FieldError(String objectName, String field, String defaultMessage);
+public FieldError(String objectName, String field, @Nullable Object 
+rejectedValue, boolean bindingFailure, @Nullable String[] codes, @Nullable
+Object[] arguments, @Nullable String defaultMessage)
+```
+`FieldError`가 제공하는 두 번째 생성자를 사용하면 외부에서 지정한 메시지 파일을 이용해서 오류 메시지를
+간편하게 설정할 수 있다.  
+`codes`는 외부 `properties` 파일에서 지정한 key 값이다. 이는 String 타입의 배열로 입력되며,
+여러 값을 입력할 수 있다.(처음 오는 값이 우선순위가 높다. `ex) new String[]{"aaa","bbb})`  
+`argument`는 `codes`에 해당하는 값이 파라미터를 필요로 할 경우, 넘겨주는 인자이다. 만약, `codes`가 `range.item.price=가격은 {0} ~ {1} 까지 허용합니다.`
+라면 `argument`를 `new Object[]{1000,10000}` 이런식으로 넘길 수 있다. 그러면 이 값들이 각각 {0} 과 {1}에 바인딩된다.
+
+이러한 외부 메시지 파일을 관리하도록 별도의 `errors.properties` 파일을 만든다.
+그리고 이것을 스프링 부트가 메시지 파일로 읽을 수 있도록 별도로 세팅을 해야 한다.
+```
+// application.properties
+// 공백일 경우 basename = messages
+spring.messages.basename=messages,errors
+
+// errors.properties
+required.item.itemName=상품 이름은 필수입니다.
+range.item.price=가격은 {0} ~ {1} 까지 허용합니다.
+max.item.quantity=수량은 최대 {0} 까지 허용합니다.
+totalPriceMin=가격 * 수량의 합은 {0}원 이상이어야 합니다. 현재 값 = {1}
+```
+- `errors_en.properties` 파일을 만든다면 오류 메시지도 국제화가 가능하다.
+
+```java
+@PostMapping("/add")
+public String addItemV3(@ModelAttribute Item item, BindingResult bindingResult,
+RedirectAttributes redirectAttributes) {
+ if (!StringUtils.hasText(item.getItemName())) {
+    bindingResult.addError(new FieldError("item", "itemName",item.getItemName(), false, new String[]{"required.item.itemName"}, null,null));
+ }
+ if (item.getPrice() == null || item.getPrice() < 1000 || item.getPrice() >1000000) {
+    bindingResult.addError(new FieldError("item", "price", item.getPrice(),false, new String[]{"range.item.price"}, new Object[]{1000, 1000000}, null));}
+ if (item.getQuantity() == null || item.getQuantity() > 10000) {
+     bindingResult.addError(new FieldError("item", "quantity",item.getQuantity(), false, new String[]{"max.item.quantity"}, new Object[]{9999}, null));
+ }
+ //특정 필드 예외가 아닌 전체 예외
+ if (item.getPrice() != null && item.getQuantity() != null) {
+   int resultPrice = item.getPrice() * item.getQuantity();
+   if (resultPrice < 10000) {
+   bindingResult.addError(new ObjectError("item", new String[]{"totalPriceMin"}, new Object[]{10000, resultPrice}, null));}
+   }
+   if (bindingResult.hasErrors()) {
+   log.info("errors={}", bindingResult);
+   return "validation/v2/addForm";
+ }
+ //성공 로직
+ Item savedItem = itemRepository.save(item);
+ redirectAttributes.addAttribute("itemId", savedItem.getId());
+ redirectAttributes.addAttribute("status", true);
+ return "redirect:/validation/v2/items/{itemId}";
+}
+```
+
+### 오류 코드와 메시지 처리2
+매번 `FieldError`와 `ObjectError`를 생성하는 것은 귀찮고 번거롭다. 이전 코드는
+`bindingResult`에 `FieldError` 또는 `ObjectError`를 생성하여 넣어주었다.
+하지만 BindingResult는 검증 객체인 `item` 다음으로 오기 때문에 이미 검증 타겟이 무엇인지 아는 상태이다.
+실제로 `bindingResult`가 갖고 있는 객체 명과 타겟 객체를 출력해서 확인할 수 있듯이 이미 객체 이름을 알고 있다.
+
+```java
+log.info("objectName={}", bindingResult.getObjectName());
+log.info("target={}", bindingResult.getTarget());
+
+/// 결과
+objectName=item //@ModelAttribute name
+target=Item(id=null, itemName=상품, price=100, quantity=1234)
+```
+따라서 굳이 Error 객체를 생성하지 않고 특정 값만 넘기면 알아서 Error 객체를 생성하게 할 수 있다.
+```java
+if (item.getQuantity() == null || item.getQuantity() > 10000) {
+ bindingResult.rejectValue("quantity", "max", new Object[]{9999}, null);
+}
+
+// 글로벌 에러
+if (resultPrice < 10000) {
+  bindingResult.reject("totalPriceMin", new Object[]{10000, resultPrice}, null);
+}
+```
+- `bindingReulst`가 객체 이름만 알기 때문에 특정 필드이름은 넘겨주어야 한다. 이외의 `codes`와 `args`는 동일한 방법으로 넘겨준다. 글로벌 에러의 경우에는 필드 이름을 넘기지 않는다.
+  - 필드 에러일 경우 : `rejectValue()`
+  - 글로벌 에러일 경우 : `reject()`
+- 해당 메서드를 사용하면 넘겨받은 인자를 통해 알아서 `FieldError` 또는 `ObjectError` 객체를 생성한다.
+
+### 오류 코드와 메시지 처리3
+오류 코드를 만들 때 간단하게 만들면 좀 더 범용성이 높아진다. 즉, 여러 곳에서 사용할 수 있는 것이다.
+하지만 자세하게 만들 경우, 특정 범위 내에서만 사용된다. 이 둘을 적절히 활용하는 방법은
+일단 범용성 높은 코드를 사용하다가. 세밀하게 설정해야 하는 경우는 세밀하게 작성된 코드를 사용하는 것이다.
+
+예를들어, `required`라는 코드명과 `required.item.itemName`이라는 코드명이 있을 경우, 전자는 좀 더 일반적이고 범용성이 높은 코드이고
+후자는 자세하게 작성된 코드이다. 이 때 우선순위는 후자가 더 높다.
+
+```
+#Level1
+required.item.itemName: 상품 이름은 필수 입니다.
+
+#Level2
+required: 필수 값 입니다.
+```
+이렇게 하면 구현 코드를 바꾸지 않고, 메시지 파일만 수정하면 된다는 장점이 있다. 이것이 가능한 이유는
+스프링의 `MessageCodesResolver`가 존재하기 때문이다.
+
 ### 단축키 정보
 - `컨트롤+쉬프트+R` : Replace - 특정 단어를 한번에 변경할 수 있다.
+- `컨트롤+E` : 가장 최근에 봤던 파일로 이동할 수 있다. 파일을 왔다갔다 봐야할 경우 유용한 단축키
