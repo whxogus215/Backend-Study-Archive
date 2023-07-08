@@ -31,6 +31,7 @@
   - [검증이 필요한 이유](#검증이-필요한-이유)
   - [검증 처리 로직 V1](#검증-처리-로직-v1)
   - [검증 처리 로직 V2](#검증-처리-로직-v2)
+  - [BindingResult]
 - [단축키](#단축키-정보)
 
 ###### Reference
@@ -1345,10 +1346,86 @@ bindingResult.addError(new ObjectError("item", "가격 * 수량의 합은 10,000
 > https://www.thymeleaf.org/doc/tutorials/3.0/thymeleafspring.html#validation-and-error-messages  
 > 해당 문서를 확인하면 보다 쉽게 이해할 수 있다.
 
+### BindingResult
+BindingResult는 스프링이 제공하는 **검증오류를 보관하는 객체이다.** 즉, 검증오류가 발생한 내용들은
+여기에 보관되는 것이다. Model에 입력받은 내용들 중에서 타입이 맞지 않거나 검증로직을 통과하지 못한 값들이
+들어간다고 이해하면 된다. 따라서 `BindingResult`가 있으면 `@ModelAttribute`에 데이터 바인딩 시
+오류가 발생해도 컨트롤러가 호출된다. 기존에는 에러 페이지를 보내면서 다운됐었다.
 
+#### `@ModelAttribute`에 바인딩 시 타입 오류가 발생할 경우
+- `BindingResult`가 있을 때 : `FieldError`를 `BindingResult`에 담아서 컨트롤러를 호출한다.
+- `BindingResult`가 없을 때 : 400 오류가 발생하면서 컨트롤러가 호출되지 않은 채 에러 페이지로 이동한다.
 
+즉, `@ModelAttribute`의 객체에 타입 오류 등으로 인해 바인딩이 실패하는 경우, 스프링이 `FieldError`를 생성해
+`BindingResult` 객체에 넣어준다.
 
+#### BindingReulst 출력 결과  
+`Field error in object 'item' on field 'price': rejected value [qqqqq]; codes [typeMismatch.item.price,typeMismatch.price,typeMismatch.java.lang.Integer,typeMismatch]; arguments [org.springframework.context.support.DefaultMessageSourceResolvable: codes [item.price,price]; arguments []; default message [price]]; default message [Failed to convert property value of type 'java.lang.String' to required type 'java.lang.Integer' for property 'price'; nested exception is java.lang.NumberFormatException: For input string: "qqqqq"]`
+- Field Error를 생성하여 해당 객체에 담겨있음을 알 수 있다.
 
+`BindingResult`는 검증할 대상 바로 다음에 와야 한다. 따라서 순서가 중요하다. 즉, `@ModelAttribute`
+다음에 `BindingResult`가 와야 한다.
+
+### 사용자 입력 오류 메세지를 화면에 남기는 법 - FieldError, ObjectError
+사용자가 입력한 데이터를 그대로 가지고 있어야 한다. `FieldError`와 `ObjectError`를 사용하면
+검증에 실패한 데이터를 저장한 채로 컨트롤러를 호출할 수 있다.
+
+```java
+// 검증 로직
+        if (!StringUtils.hasText(item.getItemName())) {
+//            bindingResult.addError(new FieldError("item", "itemName", "상품 이름은 필수입니다."));
+            bindingResult.addError(new FieldError("item", "itemName", item.getItemName(),false,null,null,"상품 이름은 필수입니다."));
+        }
+        if (item.getPrice() == null || item.getPrice() < 1000 || item.getPrice() > 1000000) {
+//            bindingResult.addError(new FieldError("item", "price", "가격은 1,000 ~ 1,000,000 까지 허용합니다."));
+            bindingResult.addError(new FieldError("item", "price", item.getPrice(), false,null, null,"가격은 1,000 ~ 1,000,000 까지 허용합니다."));
+
+        }
+        if (item.getQuantity() == null || item.getQuantity() >= 9999) {
+//            bindingResult.addError(new FieldError("item", "quantity", "수량은 최대 9,999 까지 허용합니다."));
+            bindingResult.addError(new FieldError("item", "quantity", item.getQuantity(), false, null, null,"수량은 최대 9,999 까지 허용합니다."));
+        }
+
+        // 특정 필드가 아닌 복합 룰 검증
+        if (item.getPrice() != null && item.getQuantity() != null) {
+            int resultPrice = item.getPrice() * item.getQuantity();
+            if (resultPrice < 10000) {
+                bindingResult.addError(new ObjectError("item",null,null, "가격 * 수량의 합은 10,000원 이상이어야 합니다. 현재 값 = " + resultPrice));
+            }
+        }
+```
+FieldError는 두 가지 생성자를 제공한다.
+```java
+public FieldError(String objectName, String field, String defaultMessage);
+public FieldError(String objectName, String field, @Nullable Object rejectedValue, boolean bindingFailure, 
+@Nullable String[] codes, @NullableObject[] arguments, @Nullable String defaultMessage)
+```
+- `rejectedValue`에 사용자가 입력한 거절된 값이 들어간다. 이는 `Object` 타입이기에 어떠한 데이터든 다 들어갈 수 있다.
+- `bindingFailure`가 True면 타입 오류에 의한 것으로 바인딩 실패를 의미한다.
+
+#### 타임리프의 사용자 입력 값 유지
+`th:field="*{price}"` : 타임리프의 `th:field`는 매우 유용하고 똑똑한 기능이다. 만약 정상적으로
+검증이 통과하는 경우, Model(위 코드에서는 item)의 값을 사용한다. 하지만 검증 실패로 인한 오류가 발생할 경우,
+`FieldError`에서 보관한 값을 사용해서 출력한다.
+
+```html
+ <div>
+    <label for="price" th:text="#{label.item.price}">가격</label>
+    <input type="text" id="price" th:field="*{price}"
+           th:errorclass="field-error" class="form-control" placeholder="가격을 입력하세요">
+    <div class="field-error" th:errors="*{price}">
+        가격 오류
+    </div>
+ </div>
+```
+이 예시의 경우, 검증이 성공적으로 되었을 경우, value가 Model의 값으로 바인딩된다. 하지만 검증이 실패했을 경우,
+FieldError의 값을 가져와서 value로 설정한다. 만약 `th:field`를 사용하지 않았다면 일일이 if문을 사용해서 코드를 작성해야했을 것이다.
+
+#### 스프링의 바인딩 오류 처리
+만약, 타입 오류로 인해 실패했을 경우, 스프링이 `FieldError`를 생성하여 사용자가 입력한 값을 넣어준다.
+Integer가 들어와야 하는 곳에 String 데이터가 들어왔다면 이를 FieldError의 `rejectedValue`에 담는다.
+그리고 이를 `BindingResult`에 담아서 컨트롤러에 호출한다. 따라서 BindingResult의 위치가 `@ModelAttribute` 다음에
+와야 하는 것이다. (Model에 담기지 않은 값들이 BindingResult에 들어가기 때문)
 
 ### 단축키 정보
 - `컨트롤+쉬프트+R` : Replace - 특정 단어를 한번에 변경할 수 있다.
