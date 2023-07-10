@@ -36,6 +36,7 @@
   - [오류 코드와 메시지 처리1](#오류-코드와-메시지-처리1)
   - [오류 코드와 메시지 처리2](#오류-코드와-메시지-처리2)
   - [오류 코드와 메시지 처리3](#오류-코드와-메시지-처리3)
+  - [오류 코드와 메시지 처리4](#오류-코드와-메시지-처리4)
 - [단축키](#단축키-정보)
 
 ###### Reference
@@ -1536,6 +1537,84 @@ required: 필수 값 입니다.
 ```
 이렇게 하면 구현 코드를 바꾸지 않고, 메시지 파일만 수정하면 된다는 장점이 있다. 이것이 가능한 이유는
 스프링의 `MessageCodesResolver`가 존재하기 때문이다.
+
+### 오류 코드와 메시지 처리4
+MessageCodeResolver는 입력받은 객체명, 필드 이름, 에러 코드 이름을 통해 에러코드를 문자열 배열로
+출력해준다. 즉, 이를 가지고 `FieldError` 혹은 `ObjectError`를 만들어서 `BindingResult`에게 넘기는 것이다.
+그리고 이를 타임리프 `th:errors`를 통해 확인할 수 있다.
+
+```java
+public class MessageCodesResolverTest {
+
+    MessageCodesResolver codesResolver = new DefaultMessageCodesResolver();
+
+    @Test
+    void messageCodesResolverObject() {
+        String[] messageCodes = codesResolver.resolveMessageCodes("required", "item");
+        for (String messageCode : messageCodes){
+            System.out.println("messageCodes = " + messageCode);
+        }
+        /*
+        messageCodes = required.item
+        messageCodes = required
+        */
+        // new ObjectError("item", new Sring[]{"required.item", "required"});
+        Assertions.assertThat(messageCodes).containsExactly("required.item", "required");
+    }
+
+    @Test
+    void messageCodesResolverField() {
+        String[] messageCodes = codesResolver.resolveMessageCodes("required", "item", "itemName", String.class);
+        /*for (String messageCode : messageCodes) {
+            System.out.println("messageCode = " + messageCode);
+        }*/
+        Assertions.assertThat(messageCodes).containsExactly(
+                "required.item.itemName",
+                "required.itemName",
+                "required.java.lang.String",
+                "required"
+        );
+    }
+}
+```
+#### MessageCodesResolver
+- 검증 오류 코드로 메시지 코드들을 생성한다.
+  - `messageCodes = required.item,
+    messageCodes = required`
+  - `MessageCodesResolver`는 인터페이스이고, `DefaultMessageCodesResolver`는 기본 구현체이다.
+#### MessageCodesResolver의 기본 메시지 생성 규칙
+1. Object 오류
+```
+객체 오류의 경우 다음 순서로 2가지 생성
+1.: code + "." + object name
+2.: code
+
+예) 오류 코드: required, object name: item
+1.: required.item
+2.: required
+```
+2. Field 오류
+```
+필드 오류의 경우 다음 순서로 4가지 메시지 코드 생성
+1.: code + "." + object name + "." + field
+2.: code + "." + field
+3.: code + "." + field type
+4.: code
+
+예) 오류 코드: typeMismatch, object name "user", field "age", field type: int
+1. "typeMismatch.user.age"
+2. "typeMismatch.age"
+3. "typeMismatch.int"
+4. "typeMismatch"
+```
+BindingResult가 `rejectValue(), reject()`를 사용하면 별도로 `FieldError`나 `ObjectError`를
+생성하지 않아도 되었다. 그 이유는 해당 메서드 내부에서 `MessageCodesResolver`를 사용하기 때문이다.
+`FieldError`,`ObjectError`의 경우, 오류 코드를 문자열을 통해 여러개 받을 수 있는데, `MessageCodesResolver`를 통해
+생성된 것들이다.
+
+즉, 에러 코드들을 규악에 맞게 자동으로 생성한다. 그리고 이를 타임리프 렌더링 과정에서 `th:errors`가 실행된다.
+만약 오류가 있다면 생성된 오류 메시지 코드를 순서대로 돌아가면서 메시지를 찾는다. 그리고 없으면 디폴트 메시지를 출력한다.
+
 
 ### 단축키 정보
 - `컨트롤+쉬프트+R` : Replace - 특정 단어를 한번에 변경할 수 있다.
