@@ -37,6 +37,8 @@
   - [오류 코드와 메시지 처리2](#오류-코드와-메시지-처리2)
   - [오류 코드와 메시지 처리3](#오류-코드와-메시지-처리3)
   - [오류 코드와 메시지 처리4](#오류-코드와-메시지-처리4)
+  - [오류 코드와 메시지 처리5](#오류-코드와-메시지-처리5)
+  - [오류 코드와 메시지 처리 정리](#오류-코드와-메시지-처리-정리)
 - [단축키](#단축키-정보)
 
 ###### Reference
@@ -1614,6 +1616,78 @@ BindingResult가 `rejectValue(), reject()`를 사용하면 별도로 `FieldError
 
 즉, 에러 코드들을 규악에 맞게 자동으로 생성한다. 그리고 이를 타임리프 렌더링 과정에서 `th:errors`가 실행된다.
 만약 오류가 있다면 생성된 오류 메시지 코드를 순서대로 돌아가면서 메시지를 찾는다. 그리고 없으면 디폴트 메시지를 출력한다.
+
+### 오류 코드와 메시지 처리5
+`MessageCodesResolver`는 `required.item.itemName`처럼 구체적인 코드를 먼저 만들고, `required`처럼
+덜 구체적인 코드를 낮은 우선순위로 둔다. 이렇게 하는 이유는 구체적인 것과 범용적인 것을 함께 사용할 수 있기 때문이다.
+개발자는 로직 코드를 변경하지 않고, 단순히 설정 파일만 조절해서 오류 메시지를 상황에 맞게 처리할 수 있다.
+
+```
+errors.properties
+
+#required.item.itemName=상품 이름은 필수입니다.
+#range.item.price=가격은 {0} ~ {1} 까지 허용합니다.
+#max.item.quantity=수량은 최대 {0} 까지 허용합니다.
+#totalPriceMin=가격 * 수량의 합은 {0}원 이상이어야 합니다. 현재 값 = {1}
+
+#==ObjectError==
+#Level1
+totalPriceMin.item=상품의 가격 * 수량의 합은 {0}원 이상이어야 합니다. 현재 값 = {1}
+
+#Level2 - 생략
+totalPriceMin=전체 가격은 {0}원 이상이어야 합니다. 현재 값 = {1}
+
+#==FieldError==
+#Level1
+required.item.itemName=상품 이름은 필수입니다.
+range.item.price=가격은 {0} ~ {1} 까지 허용합니다.
+max.item.quantity=수량은 최대 {0} 까지 허용합니다.
+
+#Level2 - 생략
+
+#Level3
+required.java.lang.String = 필수 문자입니다.
+required.java.lang.Integer = 필수 숫자입니다.
+min.java.lang.String = {0} 이상의 문자를 입력해주세요.
+min.java.lang.Integer = {0} 이상의 숫자를 입력해주세요.
+range.java.lang.String = {0} ~ {1} 까지의 문자를 입력해주세요.
+range.java.lang.Integer = {0} ~ {1} 까지의 숫자를 입력해주세요.
+max.java.lang.String = {0} 까지의 문자를 허용합니다.
+max.java.lang.Integer = {0} 까지의 숫자를 허용합니다.
+
+#Level4
+required = 필수 값 입니다.
+min= {0} 이상이어야 합니다.
+range= {0} ~ {1} 범위를 허용합니다.
+max= {0} 까지 허용합니다.
+```
+필드명이 `itemName`일 경우, `required` 검증 오류 메시지가 발생하면 다음 코드가 순서대로 생성된다.
+1. `required.item.itemName`
+2. `required.itemName`
+3. `required.java.lang.String`
+4. `required`
+
+그리고 이 메시지 코드들을 기반으로 `MessageSource`에서 메시지를 찾는다. (`MessageSource`는 스프링 메시지 파일을 찾는 객체)
+우선순위가 높은(구체적인 것) 것에서 우선순위가 낮은(덜 구체적인 것) 순으로 찾는다.
+
+#### ValidationUtils
+- ValidationUtils 사용 전
+```java
+if (!StringUtils.hasText(item.getItemName())) {
+ bindingResult.rejectValue("itemName", "required", "기본: 상품 이름은 필수입니다.");
+}
+```
+- ValidationUtils 사용 후
+```java
+ValidationUtils.rejectIfEmptyOrWhitespace(bindingResult, "itemName","required");
+```
+-> 공백이나 빈 값을 넣는 경우에는 이와 같은 유틸리티 코드를 활용할 수 있다.
+
+### 오류 코드와 메시지 처리 정리
+1. `rejectValue()` 호출
+2. `MessageCodesResolver`를 사용해서 검증 오류 코드로 메시지 코드들을 생성
+3. `new Field()`를 생성하면서 메시지 코드들을 보관
+4. `th:errors`에서 메시지 코드들로 메시지를 순서대로 메시지에서 찾고, 노출(출력)
 
 
 ### 단축키 정보
