@@ -38,7 +38,10 @@
   - [오류 코드와 메시지 처리3](#오류-코드와-메시지-처리3)
   - [오류 코드와 메시지 처리4](#오류-코드와-메시지-처리4)
   - [오류 코드와 메시지 처리5](#오류-코드와-메시지-처리5)
+  - [오류 코드와 메시지 처리6](#오류-코드와-메시지-처리6)
   - [오류 코드와 메시지 처리 정리](#오류-코드와-메시지-처리-정리)
+  - [Validator 분리1](#validator-분리1)
+  - [Validator 분리2](#validator-분리2)
 - [단축키](#단축키-정보)
 
 ###### Reference
@@ -1683,12 +1686,127 @@ ValidationUtils.rejectIfEmptyOrWhitespace(bindingResult, "itemName","required");
 ```
 -> 공백이나 빈 값을 넣는 경우에는 이와 같은 유틸리티 코드를 활용할 수 있다.
 
+### 오류 코드와 메시지 처리6
+만약 타입이 맞지 않을 경우, 스프링이 자동으로 `typeMismatch`라는 오류 코드를 사용한다. 따라서 `bindingResult`의 로그를 확인해보면
+`FieldError`가 담겨 있으며, 다음과 같은 메시지 코드들이 생성됨을 확인할 수 있다.  
+`codes[typeMismatch.item.price,typeMismatch.price,typeMismatch.java.lang.Integer,typ
+eMismatch]`  
+- `typeMismatch.item.price`
+- `typeMismatch.price`
+- `typeMismatch.java.lang.Integer`
+- `typeMismatch`
+따라서 `error.properties`에 위 코드들에 대한 메시지 내용을 추가하면 된다.
+```
+#추가
+typeMismatch.java.lang.Integer=숫자를 입력해주세요.
+typeMismatch=타입 오류입니다.
+```
+**여기서 핵심은 소스코드를 하나도 건들지 않고, 원하는 메시지를 단계별로 설정할 수 있다는 점이다.**
+
 ### 오류 코드와 메시지 처리 정리
 1. `rejectValue()` 호출
 2. `MessageCodesResolver`를 사용해서 검증 오류 코드로 메시지 코드들을 생성
 3. `new Field()`를 생성하면서 메시지 코드들을 보관
 4. `th:errors`에서 메시지 코드들로 메시지를 순서대로 메시지에서 찾고, 노출(출력)
 
+### Validator 분리1
+기존의 컨트롤러는 검증로직과 실행로직이 존재하기 때문에, 컨틀로러가 처리하는 업무가 상당히 많았다.
+따라서 검증에 해당하는 부분을 따로 Validator라는 객체로 분리시키도록 한다.
+```java
+@Component
+public class ItemValidator implements Validator {
+  @Override
+  public boolean supports(Class<?> clazz) {
+    return Item.class.isAssignableFrom(clazz); // 들어온 클래스가 Item 클래스와 같거나 하위 클래스인지 판단
+  }
+
+  // 검증 로직
+  @Override
+  public void validate(Object target, Errors errors) { // Errors는 BindingResult의 부모 클래스
+    Item item = (Item) target;
+
+    if (!StringUtils.hasText(item.getItemName())) {
+      errors.rejectValue("itemName","required");
+    }
+    if (item.getPrice() == null || item.getPrice() < 1000 || item.getPrice() > 1000000) {
+      errors.rejectValue("price", "range", new Object[]{1000, 1000000}, null);
+
+    }
+    if (item.getQuantity() == null || item.getQuantity() >= 9999) {
+      errors.rejectValue("quantity", "max", new Object[]{9999}, null);
+    }
+
+    if (item.getPrice() != null && item.getQuantity() != null) {
+      int resultPrice = item.getPrice() * item.getQuantity();
+      if (resultPrice < 10000) {
+        errors.reject("totalPriceMin", new Object[]{10000, resultPrice}, null);
+      }
+    }
+  }
+}
+```
+```java
+@PostMapping("/add")
+public String addItemV5(@ModelAttribute Item item, BindingResult bindingResult, RedirectAttributes redirectAttributes, Model model) {
+
+    itemValidator.validate(item, bindingResult);
+
+    if (bindingResult.hasErrors()) {
+        log.info("errors = {} ", bindingResult);
+        return "validation/v2/addForm";
+    }
+
+    // 성공 로직 - 검증 로직이 너무 길다는 문제가 존재(컨트롤러의 역할 많음)
+    Item savedItem = itemRepository.save(item);
+    redirectAttributes.addAttribute("itemId", savedItem.getId());
+    redirectAttributes.addAttribute("status", true);
+    return "redirect:/validation/v2/items/{itemId}";
+}
+```
+컨트롤러에서 Validator를 주입하였으며, 이를 활용하여 검증 로직을 수행하였다.
+
+### Validator 분리2
+스프링이 제공하는 `Validator` 인터페이스를 사용하는 이유는 스프링의 추가적인 도움을 받기 위해서이다.
+하지만 위처럼 직접 Validator를 호출하는 방법은 굳이 스프링의 인터페이스를 사용할 필요가 없음을 보여준다.
+```java
+@InitBinder
+public void init(WebDataBinder dataBinder) {
+   log.info("init binder {}", dataBinder);
+   dataBinder.addValidators(itemValidator);
+}
+```
+컨트롤러에 다음과 같은 코드를 추가하면, 컨트롤러에 있는 메서드가 실행될 때마다 해당 메서드가 동작한다.
+`WebDataBinder`라는 객체에 사용자가 생성한 Validator를 추가하여, 검증을 자동으로 적용시킬 수 있는 것이다.
+
+```java
+@PostMapping("/add")
+public String addItemV6(@Validated @ModelAttribute Item item, BindingResult bindingResult, RedirectAttributes redirectAttributes) {
+ if (bindingResult.hasErrors()) {
+   log.info("errors={}", bindingResult);
+   return "validation/v2/addForm";
+ }
+ //성공 로직
+ Item savedItem = itemRepository.save(item);
+ redirectAttributes.addAttribute("itemId", savedItem.getId());
+ redirectAttributes.addAttribute("status", true);
+ return "redirect:/validation/v2/items/{itemId}";
+}
+```
+매개변수에 추가된 `@Validated`는 검증기를 실행하라는 애노테이션이다. 즉, 이 애노테이션을 통해 `WebDataBinder`에 등록한
+검증기를 찾아서 실행한다. 검증 대상은 `@ModelAttribute`의 대상인 Model, Item이다. 이 때, 검증기가 여러 개라면 그 중 어떤 검증기를 실행해야 하는지 구분이 필요하다.
+이 때, 사용하는 것이 Validator 인터페이스에서 지원하는 `supports()`이다.
+```java
+@Component
+public class ItemValidator implements Validator {
+ @Override
+   public boolean supports(Class<?> clazz) {
+   return Item.class.isAssignableFrom(clazz);
+ }
+ @Override
+ public void validate(Object target, Errors errors) {...}
+}
+```
+`supports()`의 매개변수로 Item 타입을 집어넣으면, ItemValidator가 동작하게 되는 것이다. 
 
 ### 단축키 정보
 - `컨트롤+쉬프트+R` : Replace - 특정 단어를 한번에 변경할 수 있다.
