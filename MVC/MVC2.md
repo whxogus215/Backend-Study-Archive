@@ -42,6 +42,9 @@
   - [오류 코드와 메시지 처리 정리](#오류-코드와-메시지-처리-정리)
   - [Validator 분리1](#validator-분리1)
   - [Validator 분리2](#validator-분리2)
+- [검증2 - Bean Validation](#검증-2---bean-validation)
+  - [Bean Validation이란?](#bean-validation이란)
+  - [Bean Validation - 스프링 적용](#bean-validation---스프링-적용)
 - [단축키](#단축키-정보)
 
 ###### Reference
@@ -1806,7 +1809,73 @@ public class ItemValidator implements Validator {
  public void validate(Object target, Errors errors) {...}
 }
 ```
-`supports()`의 매개변수로 Item 타입을 집어넣으면, ItemValidator가 동작하게 되는 것이다. 
+`supports()`의 매개변수로 Item 타입을 집어넣으면, ItemValidator가 동작하게 되는 것이다.
+
+# 검증 2 - Bean Validation
+
+### Bean Validation이란?
+```java
+@Data
+public class Item {
+
+    private Long id;
+
+    @NotBlank(message = "공백X")
+    private String itemName;
+
+    @NotNull
+    @Range(min = 1000, max = 1000000)
+    private Integer price;
+
+    @NotNull
+    @Max(9999)
+    private Integer quantity;
+
+    public Item() {
+    }
+
+    public Item(String itemName, Integer price, Integer quantity) {
+        this.itemName = itemName;
+        this.price = price;
+        this.quantity = quantity;
+    }
+}
+```
+기존의 검증은 여러 if 문을 통해 복잡하게 코드를 작성하였다. 하지만 스프링 통합 Bean Validation 기술을 사용하면
+애노테이션을 통해 값을 검증할 수 있다. 이런 **검증 로직을 모든 프로젝트에 적용할 수 있게 공통화하고, 표준화 한 것이
+바로 Bean Validation이다.**
+
+Bean Validation은 특정한 구현체가 아니라 Bean Validation 2.0이라는 기술 표준이다. 즉, 검증 애노테이션과
+인터페이스의 모음이다. JPA와 하이버네이트의 관계처럼 말이다. Bean Validation을 구현한 기술 중에 일반적으로 사용하는
+구현체는 하이버네이트 Validator이다.
+
+- 공식 사이트 : http://hibernate.org/validator
+- 공식 메뉴얼 : https://docs.jboss.org/hibernate/validator/6.2/reference/en-US/html_single/
+
+`javax.validation`의 경우, 구현체에 상관없이 제공되는 표준 인터페이스이다. `org.hibernate.validator`의 경우
+하이버네이트 validator 구현체를 사용할 때만 제공되는 검증 기능이다. `build.gradle`을 통해 라이브러리를 설치하게 될 경우,
+포함된 클래스 및 애노테이션을 통해 특정 기능을 구현할 수 있는 것이다. 따라서 라이브러리의 패키지명을 통해 기능들을 잘 파악하는 것이
+중요하다.
+
+### Bean Validation - 스프링 적용
+스프링 부트가 `spring-boot-starter-validation` 라이브러리를 추가할 경우 자동으로 Bean Validator를
+인지하여 스프링에 통합한다. 스프링부트는 `LocalValidatorFactoryBean`을 글로벌 Validator로 등록한다. 이 Validator는
+`@NotNull` 같은 **애노테이션을 보고 검증을 수행한다.** 글로벌 Validator가 프로젝트에 적용되어 있기 때문에 `@Valid`,`@Validated` 같은
+애노테이션만 적용하면 된다. 만약, 오류가 발생할 경우 `FiledError`,`ObjectError`를 생성해서 `BindingResult`에 담아준다.
+
+#### 검증 순서
+1. `@ModelAttribute` 각각의 필드에 타입 변환 시도
+  - `Model`인 객체에 입력받은 파라미터를 바인딩한다. 이 때, 정의한 자바 필드 타입에 맞게 변환이 이루어진다.
+  - 성공하면 2번으로 넘어가고, 바인딩에 실패할 경우 `typeMismatch`로 `FieldError`가 추가 된다.
+2. Validator가 적용된다.
+
+여기서 중요한건 **바인딩에 성공한 필드만 Bean Validation이 적용된다는 것이다.** 타입 변환에 성공해서
+실제 모델에 들어있는 값이어야 검증 적용이 의미가 있기 때문이다. 문자가 들어와야 하는 곳에 숫자가 들어온 이상
+검증하는 것은 아무런 의미가 없기 때문이다. 이미 그 자체로 타입 오류이기 때문에 검증을 통과하지 못한 케이스인 것이다.
+
+
+
+
 
 ### 단축키 정보
 - `컨트롤+쉬프트+R` : Replace - 특정 단어를 한번에 변경할 수 있다.
