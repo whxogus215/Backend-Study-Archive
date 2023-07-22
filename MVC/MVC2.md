@@ -1873,6 +1873,54 @@ Bean Validation은 특정한 구현체가 아니라 Bean Validation 2.0이라는
 실제 모델에 들어있는 값이어야 검증 적용이 의미가 있기 때문이다. 문자가 들어와야 하는 곳에 숫자가 들어온 이상
 검증하는 것은 아무런 의미가 없기 때문이다. 이미 그 자체로 타입 오류이기 때문에 검증을 통과하지 못한 케이스인 것이다.
 
+### Bean Validation - 에러 코드
+Bean Validation이 제공하는 에러코드는 기본적으로 애노테이션의 이름을 기반으로 생성된다.
+예를들어, `@NotBlank`의 경우, `NotBlank.item.itemName`, `NotBlank.itemName` ... `NotBlank` 식으로 에러코드가 생성된다.
+여기에 있는 코드들에 대해 메시지를 적용하기 위해서는 기존에 작성했던 `errors.properties` 파일을 수정하기만 하면 된다.
+
+#### Bean Validation 메시지 찾는 순서
+1. 생성된 메시지 코드 순서대로 `messageSource`에서 메시지 찾기 (없으면 2번으로)
+2. 애노테이션의 `message` 속성 사용 (ex. `NotBlank(message = "공백! {0}")) (없으면 3번으로)
+3. 라이브러리가 제공하는 기본 값 사용 -> (ex. 공백일 수 없습니다.)
+
+### Bean Validation - 오브젝트 오류
+특정 필드(`FieldError`)가 아닌 해당 오브젝트 관련 오류(`ObjectError`, 두 가지 이상의 필드에 대한
+오류, 글로벌 오류)일 경우, 하이버네이트에서 제공하는 `@ScriptAssert()`를 사용할 수 있다.
+```java
+@Data
+@ScriptAssert(lang = "javascript", script = "_this.price * _this.quantity >= 
+10000")
+public class Item {
+ //...
+}
+```
+메시지 코드 또한 `ScriptAssert`를 기반으로 생성된다. (`ScriptAssert.item`, `ScriptAssert`)
+
+하지만 실무에서 사용하기에는 제약이 많고 복잡하다. 따라서 **검증 코드를 자바 코드로 구현해서 컨트롤러에 추가하는 것을 권장한다.**
+```java
+@PostMapping("/add")
+    public String addItem(@Validated @ModelAttribute Item item, BindingResult bindingResult, RedirectAttributes redirectAttributes, Model model) {
+
+        if (item.getPrice() != null && item.getQuantity() != null) {
+            int resultPrice = item.getPrice() * item.getQuantity();
+            if (resultPrice < 10000) {
+                bindingResult.reject("totalPriceMin", new Object[]{10000, resultPrice}, null);
+            }
+        }
+
+        if (bindingResult.hasErrors()) {
+            log.info("errors = {} ", bindingResult);
+            return "validation/v3/addForm";
+        }
+
+        Item savedItem = itemRepository.save(item);
+        redirectAttributes.addAttribute("itemId", savedItem.getId());
+        redirectAttributes.addAttribute("status", true);
+        return "redirect:/validation/v3/items/{itemId}";
+    }
+```
+이처럼 오브젝트 오류가 발생했을 경우, 컨트롤러에 따로 검증기능을 추가한다. 
+
 
 
 
