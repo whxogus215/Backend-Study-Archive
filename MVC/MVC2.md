@@ -45,6 +45,8 @@
 - [검증2 - Bean Validation](#검증-2---bean-validation)
   - [Bean Validation이란?](#bean-validation이란)
   - [Bean Validation - 스프링 적용](#bean-validation---스프링-적용)
+  - [Bean Validation - 에러 코드](#bean-validation---에러-코드)
+  - [Bean Validation - 오브젝트 오류](#bean-validation---오브젝트-오류)
 - [단축키](#단축키-정보)
 
 ###### Reference
