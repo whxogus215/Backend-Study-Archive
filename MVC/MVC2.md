@@ -46,6 +46,8 @@
   - [Bean Validation이란?](#bean-validation이란)
   - [Bean Validation - 스프링 적용](#bean-validation---스프링-적용)
   - [Bean Validation - 에러 코드](#bean-validation---에러-코드)
+  - [Bean Validation - 여러 검증사항 적용](#bean-validation-여러-검증사항-적용)
+  - [Bean Validation - 메시지 바디에 적용](#bean-validation---메시지-바디에-적용)
   - [Bean Validation - 오브젝트 오류](#bean-validation---오브젝트-오류)
 - [단축키](#단축키-정보)
 
@@ -1923,9 +1925,104 @@ public class Item {
 ```
 이처럼 오브젝트 오류가 발생했을 경우, 컨트롤러에 따로 검증기능을 추가한다. 
 
+### Bean Validation 여러 검증사항 적용
+아이템을 등록할 때 검증할 항목과 수정할 때 검증할 항목이 다를 수 있다. 분명 서비스를 개발하다보면 각 상황에 따른 검증을 수행해야 할 경우가
+반드시 존재할 것이다. 따라서 하나의 도메인 객체에 대해 두 가지 다른 검증항목을 적용하기 위해서는 두 가지 방법을 적용할 수 있다.
+1. groups 기능 적용
+   - `@Validated`의 value 속성을 통해 검증이 적용되는 항목을 구분할 수 있다. (이는 인터페이스를 사용한다.)
+   - 실무에서는 잘 사용하지 않는 방법이다.
+2. 도메인 객체 분리
+   - 데이터를 등록할 때 전달되는 객체와 실제 저장소에 저장되는 객체가 일치하지 않을 수 있다. 데이터를 등록할 때는 Id 값이 필요하지 않지만 실제 값을 저장할 때는 Id가 필요할 수 있다.
+   - 따라서 하나의 객체로 모든 것을 활용하지 않고 HTTP Form 입력하는 곳에서 사용할 수 있는 Form 객체를 생성한다.
+   - `HTML Form -> ItemSaveForm -> Controller -> Item 생성 -> Repository` 이 순서대로 진행된다.
 
+```java
+@Data
+public class ItemSaveForm {
+ @NotBlank
+ private String itemName;
+ @NotNull
+ @Range(min = 1000, max = 1000000)
+ private Integer price;
+ @NotNull
+ @Max(value = 9999)
+ private Integer quantity;
+}
 
+@Data
+public class ItemUpdateForm {
+  @NotNull
+  private Long id;
+  @NotBlank
+  private String itemName;
+  @NotNull
+  @Range(min = 1000, max = 1000000)
+  private Integer price;
+  //수정에서는 수량은 자유롭게 변경할 수 있다.
+  private Integer quantity;
+}
+```
+```java
+@PostMapping("/add")
+    public String addItem(@Validated @ModelAttribute("item") ItemSaveForm form, BindingResult bindingResult, RedirectAttributes redirectAttributes) {
 
+        if (form.getPrice() != null && form.getQuantity() != null) {
+            int resultPrice = form.getPrice() * form.getQuantity();
+            if (resultPrice < 10000) {
+                bindingResult.reject("totalPriceMin", new Object[]{10000, resultPrice}, null);
+            }
+        }
+
+        if (bindingResult.hasErrors()) {
+            log.info("errors = {} ", bindingResult);
+            return "validation/v4/addForm";
+        }
+
+        // 데이터를 저장할 때는 Item 타입으로 생성해서 전달한다.
+        Item item = new Item();
+        item.setItemName(form.getItemName());
+        item.setPrice(form.getPrice());
+        item.setQuantity(form.getQuantity());
+
+        Item savedItem = itemRepository.save(item);
+        redirectAttributes.addAttribute("itemId", savedItem.getId());
+        redirectAttributes.addAttribute("status", true);
+        return "redirect:/validation/v4/items/{itemId}";
+    }
+```
+- `@ModelAttribute`에서 View에 전달되는 모델이름은 자동으로 객체 변수 이름으로 되기 때문에 특별한 값을 지정할 수 있다.
+- 실제 저장소에 저장하는 로직에서는 `ItemSaveForm`이 아닌 `Item` 객체를 생성해서 저장한다.
+
+### Bean Validation - 메시지 바디에 적용
+API 요청 값에 대해서도 검증을 적용할 수 있다. `@ModelAttribute`는 HTTP 요청 파라미터(URL 쿼리 스트링, POST Form)에 사용되며,
+`@RequestBody`는 HTTP Body의 데이터를 객체로 변환할 때 사용한다. (주로 API 요청에서 사용)
+
+```java
+@Slf4j
+@RestController
+@RequestMapping("/validation/api/items")
+public class ValidationItemApiController {
+
+  @PostMapping("/add")
+  public Object addItem(@RequestBody @Validated ItemSaveForm form, BindingResult bindingResult) {
+    log.info("API 컨트롤러 호출");
+
+    if (bindingResult.hasErrors()) {
+      log.info("검증 오류 발생 errors={}", bindingResult);
+      return bindingResult.getAllErrors();
+    }
+
+    log.info("성공 로직 실행");
+    return form;
+  }
+}
+```
+만약, 입력한 타입이 다를 경우 `HttpMessageConverter`에서 요청받은 JSON을 객체로 변환하는 것에 실패한다. 따라서 컨트롤러의 매개변수인 `ItemSaveForm` 객체가 생성되지 않으므로
+**컨트롤러 자체가 호출되지 않는다.** 그 전에 예외가 발생해버린다.
+
+`@ModelAttribute`의 경우, 각각의 필드 단위로 객체에 바인딩되기 때문에, 특정 필드에 타입이 맞지 않더라도 나머지는 정상적으로 처리한다. 하지만
+`@RequestBody`의 경우, 하나의 필드가 타입이 맞지 않으면 객체 자체가 생성이 되지 않는다. `HttpMessageConverter`가 객체 단위로 적용되기 때문이다.
+따라서 컨버터가 정상적으로 작동해서 컨트롤러의 매개변수 객체가 생성되어야 `@Valid`,`@Validated` 같은 검증 기능이 적용된다.
 
 ### 단축키 정보
 - `컨트롤+쉬프트+R` : Replace - 특정 단어를 한번에 변경할 수 있다.
