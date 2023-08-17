@@ -14,8 +14,8 @@
 돌아가기 위해서는 클라이언트, 애플리케이션 서버 그리고 DB가 잘 갖추어져 있어야 한다. 따라서 애플리케이션 서버와 DB의
 연결은 매우 중요하다.
 
-[그림 1]
-[그림 2]
+![DB1](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/51210003-3961-4e5f-89fc-9471f13765bb)
+![DB2](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/24afcbdd-821f-4b21-8015-888b62ddadf4)
 
 이와 같이 서버와 DB는 다양한 절차를 거치며 데이터를 주고받게 된다. 이 때, DB가 바뀌게 되면 서버에 작성된 DB 접근 관련 코드를
 바뀐 DB의 스펙에 맞게 다시 작성해야 한다. 또한 DB마다 커넥션 연결, SQL 전달, 결과를 받는 방법을 새로 학습해야 한다.
@@ -23,7 +23,7 @@
 **이러한 문제를 해결하기 위해 표준화된 것이 JDBC이다.** JDBC 표준 인터페이스는 자바에서 DB에 접근할 수 있는
 방법을 표준화한 자바 API이다. 즉, DB에 CRUD 하는 방법을 제공하는 것이다.
 
-[그림 3]
+![DB3](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/1b4621d1-d529-4d1a-bf81-516b995ea5ba)
 
 이처럼 애플리케이션 서버는 구체화된 DB와 연결되지 않고, 추상화된 인터페이스와 연결되어 있다. 이는 SOLID 원칙 중 [DIP](https://github.com/whxogus215/JavaBookArchive/blob/main/OOP-for-Spring/JavaAndOOP.md#ISP-%EC%9D%B8%ED%84%B0%ED%8E%98%EC%9D%B4%EC%8A%A4-%EB%B6%84%EB%A6%AC-%EC%9B%90%EC%B9%99)를 준수한다.
 JDBC는 인터페이스이기 때문에 이 자체로는 동작하지 않는다. 따라서 이 JDBC에서 정의한 기능들을 직접 구현하는 것은 DB 벤더(회사)의 몫이다.
@@ -31,7 +31,7 @@ JDBC는 인터페이스이기 때문에 이 자체로는 동작하지 않는다.
 MySQL DB에 접근할 수 있는 라이브러리이다. **드라이버는 DB가 아니다! 드라이버는 DB와 연결될 수 있도록 돕는 라이브러리에 불과하다.
 (JDBC의 구현체)** JDBC 드라이버 뿐만 아니라 실제 DB에 대한 설계가 있어야 한다.
 
-[그림 4]
+![DB4](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/e31c361e-f132-4c71-ac98-73fc6b225c1a)
 
 ### 핵심 정리
 JDBC로 인해 다음과 같은 문제가 해결되었다.
@@ -49,7 +49,7 @@ JDBC로 인해 다음과 같은 문제가 해결되었다.
 1997년에 출시된 만큼 매우 오래된 기술이고, 사용방법도 복잡하다.** 따라서 최근에는 JDBC를 직접 사용하기 보다는
 JDBC를 편리하게 사용할 수 있는 기술들을 사용하는 편이다. 대표적으로 **SQL Mapper와 ORM 기술**이 있다.
 
-[그림 5]
+![DB5](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/36c8fa9e-15b5-4633-a2d7-c98a22f9e802)
 
 **JPA는 자바 진영의 인터페이스이며, 이를 구현한 것이 존재해야 한다. 대표적인 기술로 하이버네이트(제일 많이 사용), 이클립스 링크 등이 있다.**
 
