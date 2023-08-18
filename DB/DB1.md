@@ -104,9 +104,11 @@ url=jdbc:h2:tcp://localhost/~/test user=SA, class=class org.h2.jdbc.JdbcConnecti
 실제 출력문을 보면 알 수 있듯이 반환데는 커넥션의 실제 타입은 h2에서 제공하는 JDBC 커넥션이다.
 > 실제 반환한 JdbcConnection은 구현 클래스이며, JDBC의 Connectionin 인터페이스를 구현하였다.
 
-[그림 1]
-[그림 2]
-[그림 3]
+![DB1](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/4a035630-35c4-4162-a31e-713b3c21f513)
+
+![DB2](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/ca0bcc49-52cc-4730-8ece-b95368d176f9)
+
+![DB3](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/a8099ea2-8192-460b-aaf7-4591ffa84b62)
 
 1. 애플리케이션 로직은 JDBC가 제공하는 `DriverManager.getConnection(URL, USERNAME, PASSWORD);`을 통해 커넥션을 요청한다.
 2. `DriverManager`는 라이브러리에 등록된 드라이버 목록을 자동으로 인식한다. 즉, 드라이버들에게 URL, USERNAME, PASSWORD를 전달하여
@@ -247,7 +249,7 @@ public Member findById(String memberId) throws SQLException {
 `executeQuery()`를 사용한다. 이는 ResultSet을 반환한다. 가져온 데이터를 객체로 변환하기 위해 새로 Member를 만든 뒤,
 ResultSet의 컬럼의 값을 가져와 설정한다. (DB의 member_id와 객체 Member의 memberId는 서로 호환되지 않음)
 
-[그림 4]
+![DB4](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/ad5be060-2f2a-48e4-bc9e-b13480cb3ec2)
 
 이처럼 초기의 cursor는 데이터를 가리키고 있지 않기 때문에 최소 1번은 커서를 이동시켜야 한다.(컬렉션의 이터레이터와 비슷)
 
