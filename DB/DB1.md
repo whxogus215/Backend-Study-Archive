@@ -3,6 +3,14 @@
     - [JDBC의 등장 이유](#jdbc의-등장-이유)
     - [JDBC와 최신 데이터 접근 기술](#jdbc와-최신-데이터-접근-기술)
     - [JDBC를 활용한 CRUD](#jdbc를-활용한-crud)
+- [커넥션 풀과 데이터 소스 이해](#커넥션-풀과-데이터-소스-이해)
+  - [커넥션 풀 이해](#커넥션-풀-이해)
+  - [데이터 소스 이해](#데이터-소스-이해)
+    - [DriverManager](#drivermanager)
+      - [기존 DriverManager와 DriverManagerDataSource의 차이점](#기존-drivermanager와-drivermanagerdatasource의-차이점)
+      - [설정과 사용의 분리](#설정과-사용의-분리)
+    - [커넥션 풀](#커넥션-풀)
+  - [DataSource 활용](#datasource-활용)
 - [단축키 정리](#단축키-정리)
 
 
@@ -347,12 +355,161 @@ MemberRepositoryV0 repository = new MemberRepositoryV0();
 번거로운 작업 중 하나이다. 이것이 바로 초기 JDBC가 갖는 문제점이다. **안심할만한 점은 현 개발시장에서 이렇게 코드를
 작성하지는 않는다.**
 
+# 커넥션 풀과 데이터 소스 이해
+
+## 커넥션 풀 이해
+[그림 1]
+
+애플리케이션은 사용자가 많아질수록 그만큼 요청할 SQL문도 많아진다. 따라서 매번 커넥션을 획득해서 실행하는 것은 굉장히 시간이
+많이 소요될 것이다. 기본적으로 커넥션을 확보하는 시간은 ms 정도로 매우 빠르다. 하지만 그럼에도 커넥션을 매번 획득하는 것은
+비효율적이다. **이를 해결하는 방법이 커넥션을 미리 생성해서 보관하는 커넥션 풀을 이용하는 것이다.** 애플리케이션 서버가 실행되었을 때
+바로 DB와 연결하여 커넥션을 가져온다. 그리고 이를 서버 내 커넥션 풀에 보관한다.
+
+[그림 2]
+
+**이렇게 확보된 커넥션들은 이미 DB와 TCP/IP를 통해 연결하고 인증이 완료된 것들이기에 언제든지 바로바로 SQL문을 전달할 수 있다.**
+
+[그림 3]
+
+### 정리
+커넥션 풀의 개수는 애플리케이션 서버 스펙, DB 서버 스펙에 맞게 성능 테스트를 진행하여 결정해야 한다. 또한 **커넥션의 개수의 상한선을 지정함으로써
+DB에 무한정 연결되는 것을 막는 효과도 있다.** 이처럼 성능 향상 및 보호의 효과가 있기에 커넥션 풀은 **실무에서 기본으로 사용된다.** 오픈소스인
+커넥션 풀을 주로 사용하며, 대표적으로 `HikariCP`가 있다. 스프링 부트 2.0 부터는 기본 커넥션 풀로 `HikariCP`를 제공한다. 따라서 어떠한 DB를 사용하더라도
+터미널에서 HikariCP가 뜨는 이유가 바로 이것이다. **스프링부트 서버가 실행됨에 따라 DB와 연결을 통해 커넥션을 커넥션 풀에 저장하는 과정에서 HikariCP가
+실행되기 때문이다.**
+
+## 데이터 소스 이해
+이제 커넥션을 사용하는 방법은 크게 2가지로 나뉠 수 있다. 앞서 설명한 JDBC의 `DriverManager`를 사용하여 매번 커넥션을 얻을 수 있고,
+커넥션 풀을 사용하여 미리 생성된 커넥션을 사용할 수도 있다. 
+
+[그림 4]
+
+**이처럼 애플리케이션 로직이 DriverManager와 커넥션 풀을 추상화한 것에 의존하지 않기 때문에 방법을 변경할 경우 로직 전체에 코드 수정이 필요하다.**
+
+[그림 5]
+
+자바에서는 이처럼 커넥션을 획득하는 방법들을 **추상화한 인터페이스 DataSource를 제공한다.**
+
+```java
+public interface DataSource {
+ Connection getConnection() throws SQLException;
+}
+```
+- DataSource는 이처럼 **커넥션을 얻는 방법에 대한 기능을 정의하고 있다.**
+
+### 정리
+`DataSource`는 **커넥션을 얻기 위한 방법을 추상화한 인터페이스이다.** 대부분의 커넥션 풀은 이 `DataSource`를 구현해두었다. 따라서
+애플리케이션 로직은 `DataSource` 인터페이스만 의존하는 코드로 작성된다. 또한 `DriverManger`도 스프링에서 제공하는 `DriverManagerDataSource`라는 클래스를
+사용하면 `DataSource` 인터페이스에 의존하도록 코드를 작성할 수 있다. (`DriverManagerDataSource`는 `DataSource` 인터페이스를 구현한 클래스이다.)
+
+### DriverManager
+```java
+    @Test
+     void dataSourceDriverManager() throws SQLException {
+         //DriverManagerDataSource - 항상 새로운 커넥션 획득
+         DriverManagerDataSource dataSource = new DriverManagerDataSource(URL, USERNAME, PASSWORD);
+         useDataSource(dataSource);
+     }
+
+    private void useDataSource(DataSource dataSource) throws SQLException {
+        Connection con1 = dataSource.getConnection();
+        Connection con2 = dataSource.getConnection();
+        log.info("connection={}, class={}", con1, con1.getClass());
+        log.info("connection={}, class={}", con2, con2.getClass());
+    }
+```
+이처럼 `DriverManagerDataSource`를 사용하면 `DataSource` 인터페이스 형태로 주입받아 사용할 수 있다.
+
+### 기존 DriverManager와 DriverManagerDataSource의 차이점
+```java
+/// JDBC의 DriverManager 사용
+DriverManager.getConnection(URL, USERNAME, PASSWORD)
+DriverManager.getConnection(URL, USERNAME, PASSWORD)
+
+/// 스프링 부트의 DriverManagerDataSource 사용
+@Test
+void dataSourceDriverManager() throws SQLException {
+     DriverManagerDataSource dataSource = new DriverManagerDataSource(URL, USERNAME, PASSWORD);
+     useDataSource(dataSource);
+}
+
+private void useDataSource(DataSource dataSource) throws SQLException {
+    Connection con1 = dataSource.getConnection();
+    Connection con2 = dataSource.getConnection();
+    log.info("connection={}, class={}", con1, con1.getClass());
+    log.info("connection={}, class={}", con2, con2.getClass());
+}
+```
+JDBC의 `DriverManager`는 커넥션을 획득할 때마다 파라미터인 `USER, USERNAME, PASSWORD` 를 계속 넘겨야 된다.
+하지만 스프링 부트의 `DriverManagerDataSource`는 초기에 한 번만 파라미터(설정 값)를 넘기고, 이후 커넥션을 획득할 때는
+`getConnection()`만 호출하면 된다.
+
+### 설정과 사용의 분리
+- 설정 : `DataSource`를 만들고 필요한 속성들을 사용해서 `URL , USERNAME , PASSWORD` 같은 부분을 입력하
+  는 것을 말한다. 이렇게 설정과 관련된 속성들은 한 곳에 있는 것이 향후 변경에 더 유연하게 대처할 수 있다.
+- 사용 : 설정은 신경쓰지 않고, `DataSource` 의 `getConnection()` 만 호출해서 사용하면 된다.
+
+- DataSource가 만들어지는 시점에서 최초로 한 번만 설정값을 넘긴 후, 이후 커넥션을 획득할 때는 `getConnection()`만 호출하면 된다.
+- **즉, Repository는 `DataSource`만 의존하고, 설정 값에 대한 정보를 몰라도 된다.**
+- 이것이 중요한 이유는 `DataSource`를 사용하는 곳이 여러 곳일 수 있기 때문에 설정과 사용을 분리하는 것이 필요하다. 
 
 
+### 커넥션 풀
+```java
+@Test
+void dataSourceConnectionPool() throws SQLException, InterruptedException {
+     //커넥션 풀링: HikariProxyConnection(Proxy) -> JdbcConnection(Target)
+     HikariDataSource dataSource = new HikariDataSource();
+     
+     dataSource.setJdbcUrl(URL);
+     dataSource.setUsername(USERNAME);
+     dataSource.setPassword(PASSWORD);
+     dataSource.setMaximumPoolSize(10);
+     dataSource.setPoolName("MyPool");
+     
+     useDataSource(dataSource);
+     Thread.sleep(1000); //커넥션 풀에서 커넥션 생성 시간 대기
+}
+```
+- HikariCP 커넥션 풀을 사용한다. 이는 `DataSource` 인터페이스를 구현하고 있다. 커넥션 풀에서 커넥션을 생성하는
+작업은 별도의 쓰레드에서 진행된다. 따라서 어플리케이션 실행 속도에 영향을 주지 않는다. 이처럼 `Thread.sleep()`을 하지 않으면
+커넥션이 다 생성되기 전에 테스트가 종료되어 버린다.
 
-
-
-
+## DataSource 활용
+```java
+@Slf4j
+public class MemberRepositoryV1 {
+     private final DataSource dataSource;
+     
+     public MemberRepositoryV1(DataSource dataSource) {
+        this.dataSource = dataSource;
+     }
+     
+     //save()...
+     //findById()...
+     //update()....
+     //delete()....
+        
+     private void close(Connection con, Statement stmt, ResultSet rs) {
+         JdbcUtils.closeResultSet(rs);
+         JdbcUtils.closeStatement(stmt);
+         JdbcUtils.closeConnection(con);
+     }
+     
+     private Connection getConnection() throws SQLException {
+         Connection con = dataSource.getConnection();
+         log.info("get connection={}, class={}", con, con.getClass());
+         return con;
+     }
+}
+```
+- `DataSource` 의존관계 주입
+  - 외부에서 `DataSource`를 주입 받아서 사용한다.
+  - `DataSource`는 인터페이스이므로, 구현체가 `DriverManagerDataSource`에서 `HikariDataSource`로 변경되어도
+  전체 로직을 변경할 필요가 없다. (**DI + OCP**)
+- `JdbcUtils` 편의 메서드
+  - 스프링은 JDBC를 편리하게 다룰 수 있는 `JdbcUtils` 라는 편의 메서드를 제공한다.
+  - `JdbcUtils`를 사용하면 커넥션 및 기타 리소스를 닫는 메서드를 제공한다.
 
 
 
