@@ -358,18 +358,18 @@ MemberRepositoryV0 repository = new MemberRepositoryV0();
 # 커넥션 풀과 데이터 소스 이해
 
 ## 커넥션 풀 이해
-[그림 1]
+![DB1](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/d6735a00-9046-4037-a674-835d5054aefb)
 
 애플리케이션은 사용자가 많아질수록 그만큼 요청할 SQL문도 많아진다. 따라서 매번 커넥션을 획득해서 실행하는 것은 굉장히 시간이
 많이 소요될 것이다. 기본적으로 커넥션을 확보하는 시간은 ms 정도로 매우 빠르다. 하지만 그럼에도 커넥션을 매번 획득하는 것은
 비효율적이다. **이를 해결하는 방법이 커넥션을 미리 생성해서 보관하는 커넥션 풀을 이용하는 것이다.** 애플리케이션 서버가 실행되었을 때
 바로 DB와 연결하여 커넥션을 가져온다. 그리고 이를 서버 내 커넥션 풀에 보관한다.
 
-[그림 2]
+![DB2](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/16ffc7c7-df80-475e-bc08-2ab71a375b19)
 
 **이렇게 확보된 커넥션들은 이미 DB와 TCP/IP를 통해 연결하고 인증이 완료된 것들이기에 언제든지 바로바로 SQL문을 전달할 수 있다.**
 
-[그림 3]
+![DB3](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/82c1044c-83ee-42fd-ab88-80416e12944d)
 
 ### 정리
 커넥션 풀의 개수는 애플리케이션 서버 스펙, DB 서버 스펙에 맞게 성능 테스트를 진행하여 결정해야 한다. 또한 **커넥션의 개수의 상한선을 지정함으로써
@@ -382,11 +382,11 @@ DB에 무한정 연결되는 것을 막는 효과도 있다.** 이처럼 성능 
 이제 커넥션을 사용하는 방법은 크게 2가지로 나뉠 수 있다. 앞서 설명한 JDBC의 `DriverManager`를 사용하여 매번 커넥션을 얻을 수 있고,
 커넥션 풀을 사용하여 미리 생성된 커넥션을 사용할 수도 있다. 
 
-[그림 4]
+![DB4](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/f7ae3a71-5c05-4ac8-9c72-0611e9a2a1e4)
 
 **이처럼 애플리케이션 로직이 DriverManager와 커넥션 풀을 추상화한 것에 의존하지 않기 때문에 방법을 변경할 경우 로직 전체에 코드 수정이 필요하다.**
 
-[그림 5]
+![DB5](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/86d62823-9f12-413d-abfe-d95121af1d72)
 
 자바에서는 이처럼 커넥션을 획득하는 방법들을 **추상화한 인터페이스 DataSource를 제공한다.**
 
