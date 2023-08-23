@@ -539,8 +539,9 @@ public class MemberRepositoryV1 {
 
 1번에서 4번으로 갈수록 격리성이 엄격해지며, 이에 따라 동시 처리 성능은 나빠진다. 
 
-[그림 1]
-[그림 2]
+![DB1](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/41d6a378-db68-4f8c-93ec-914a81dbb834)
+
+![DB2](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/32c6571d-28b0-4ad7-a3e4-37bb9a9e623f)
 
 **하나의 커넥션은 하나의 세션과 연결되며, DB에 연결될 때 세션 ID가 다를 경우, 서로 다른 클라이언트로 분류된다.**
 
