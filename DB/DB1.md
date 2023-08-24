@@ -14,6 +14,10 @@
 - [트랜잭션 이해](#트랜잭션-이해)
   - [트랜잭션 개념](#트랜잭션-개념)
   - [트랜잭션 사용법](#트랜잭션-사용법)
+  - [트랜잭션 DB 적용](#트랜잭션-db-적용)
+- [DB 락](#db-락)
+  - [DB 락 - 조회](#db-락-조회)
+- [테스트 코드 작성 Tip](#테스트-코드-작성-tip)
 - [단축키 정리](#단축키-정리)
 
 
@@ -555,16 +559,279 @@ public class MemberRepositoryV1 {
 - 수동 커밋 : 수동 커밋을 설정한다는 것은 **트랜잭션을 시작하는 것과 같다.** 수동 커밋, 즉 트랜잭션을 사용할 경우
 데이터 변경 시 `commit` 혹은 `rollback`을 반드시 호출해야 한다.
 
-
 ### Rollback을 사용하는 이유
 쿼리문을 작성하다 보면 잘못된 쿼리를 실행하거나, 혹은 특정 쿼리에 오타로 인해 특정 쿼리만 실행이 안될 수가 있다.
 그러면 앞서 말한 것처럼 트랜잭션의 한 단위 만큼의 수행에 원자성이 어긋나게 된다. **즉, 트랜잭션을 시작하기 전 상태로
 돌아가야만 한다.** 따라서 이러한 경우에 **Rollback**을 사용해야 한다.
 
+## DB 락
+동기화 문제에서 **Critical Section**에 대한 동시 접근을 막기 위해 해당 자원에 대한 Lock을 얻는 방법을 사용한다.
+DB에서도 동시에 같은 Row(테이블의 행)에 접근하게 되면, **서로 다른 값을 수정하게 됨으로써 데이터가 서로 일치하지 않는 문제가 발생한다.**
+ 따라서 트랜잭션을 시작하고 마칠 때까지는 다른 세션에서 접근할 수 없도록 **Lock(락)** 을 얻어야 한다.
+### DB 락 그림 예시
+[그림 1]
+[그림 2]
+[그림 3]
+
+이처럼 트랜잭션을 시작하여 쿼리문을 실행하기 위해서는 **락을 먼저 얻어야 한다.** 만약 락이 없는 상태에서 쿼리문을
+수행하게 되면 **락을 얻을 때까지 대기해야 한다.** 만약 락을 얻은 세션이 커밋을 함으로써 트랜잭션을 종료하면 락을 반납하게 된다.
+그리고 그 다음으로 락을 얻은 세션은 방금 실행했던 쿼리문이 정상 동작하게 된다.
+
+### 정리
+특정 Row에 접근하기 위해서는 Lock을 얻어야 하며, Lock이 없다면 대기해야 한다. 또한 `Commit` 혹은 `Rollback`을 통해
+트랜잭션이 종료되면 Lock을 반납하게 된다.
+
+### DB 락 조회
+보통 데이터를 조회하는 SELECT문을 사용할 때는 락이 없어도 가능하다. 데이터를 변경하는 것이 아니기 때문에 큰 문제가 없다.
+하지만 데이터를 조회하여 특정 계산을 해야할 경우, 이 과정에서는 데이터가 변경되어서는 안된다. **즉, 조회하는 과정에서
+Lock을 얻는다면 특정 값에 대한 조회가 끝날 때까지 누구도 해당 값을 변경할 수 없다.**
+> 편의점 정산으로 예를 들면 이해하기 쉬울 것이다. 마감을 하고 최종적으로 포스기 정산을 하는데 이 때 조회하는 값들은
+> 변경되어서는 안되는 값들이다.(금일 판매 총액, 재고 등) **이처럼 조회한 값으로 무언가를 해야할 때 값이 변경되는 것을 막기 위해
+> 조회하는 과정에서 Lock을 얻는 것이다.**
+
+[그림 4]
+
+```sql
+set autocommit false;
+select * from member where member_id='memberA' for update;
+```
+조회하는 과정에서 Lock을 얻으려면 다음과 같이 `for update`를 붙여야 한다. 그러면 트랜잭션이 종료될 때(`commit`, `rollback`) Lock을 반납하게 된다.
+
+## 트랜잭션 DB 적용
+테스트 코드를 작성하여 실행하는 경우, 보통 트랜잭션을 활용하면 유용하다. 테스트에 사용되는 데이터가 DB에 들어간 상태로
+커밋이 되면, 실제 DB에 영향을 주기 때문이다. 따라서 테스트가 다 끝나면 Rollback을 하여 트랜잭션 시작 전 상태로 돌아가면
+원래 DB에 영향을 주지 않고 테스트를 안전하게 얼마든지 진행할 수 있다.
+
+[그림 5]
+
+물론 이처럼 커넥션을 파라미터로 전달하는 방식은 번거롭다. 실제로는 이러한 방식을 사용하지 않는다.
+
+```java
+/*
+* 트랜잭션 - 파라미터 연동, 풀을 고려한 종료
+*/
+@Slf4j
+@RequiredArgsConstructor
+public class MemberServiceV2 {
+
+    private final DataSource dataSource;
+    private final MemberRepositoryV2 memberRepository;
+
+    public void accountTransfer(String fromId, String toId, int money) throws SQLException {
+        Connection con = dataSource.getConnection(); // 서비스 계층에서 Connection을 얻어 Repository 계층에 전달한다.
+        try {
+            con.setAutoCommit(false); // 트랜잭션 시작
+            // 비즈니스 로직 수행
+            bizLogic(con, fromId, toId, money);
+            con.commit(); // 성공 시 커밋
+        } catch (Exception e) {
+            con.rollback(); // 실패 시 롤백
+            throw new IllegalStateException(e);
+        } finally {
+            release(con);
+        }
+    }
+
+    private void bizLogic(Connection con, String fromId, String toId, int money) throws SQLException {
+        Member fromMember = memberRepository.findById(con, fromId);
+        Member toMember = memberRepository.findById(con, toId);
+
+        memberRepository.update(con, fromId, fromMember.getMoney() - money);
+        validation(toMember);
+        memberRepository.update(con, toId, toMember.getMoney() + money); // validation 검증에 실패하면 해당 로직이 수행되지 않음
+    }
+
+    private static void release(Connection con) {
+        if (con != null) {
+            try {
+                con.setAutoCommit(true); // 풀에 반납할 때는 오토커밋으로 변경하고 반납해야 한다. - 커넥션 풀을 안 쓰면 상관X
+                con.close();
+            } catch (Exception e) {
+                log.info("error", e);
+            }
+        }
+    }
+
+    private static void validation(Member toMember) {
+        if (toMember.getMemberId().equals("ex")) {
+            throw new IllegalStateException("이체 중 예외 발생");
+        }
+    }
+}
+```
+**이처럼 트랜잭션의 시작과 끝은 서비스 계층에서 담당하게 된다.** 따라서 커넥션을 얻는 것도 서비스 로직에서부터 시작된다.
+만약 중간에 예외가 발생한다면 로직이 중간에 끊기는 것이므로 **Rollback을 해줘야 한다.** 그게 아니라면 **Commit을 해야하고,**
+Rollback 과 Commit 둘 다 트랜잭션이 종료되면 리소스를 종료해야 한다. **따라서 try-catch-finally문이 사용된 것이다.**
+이 때 주의해야할 점은 커넥션을 닫을 때, **AutoCommit**을 True로 해야 한다. 이 커넥션은 커넥션 풀로 반환되는 것이기 때문에
+트랜잭션 시작할 때 설정한 AutoCommit을 다시 활성화 시켜야 한다. 모든 DB의 기능들은 AutoCommit을 기반으로 진행된다.
+**따라서 트랜잭션을 다 사용하였다면 AutoCommit을 활성화 시켜야 하는 것이다.**
+
+### 정리
+이처럼 try-catch-finally 문을 사용하면 로직 성공 시 Commit, 로직 실패 시 Rollback, 트랜잭션 종료 시 커넥션 닫기를 수행할 수 있다.
+다만 이는 매우 번거롭고 실제 서비스 로직에서 많은 부분을 차지한다. 위 코드를 살펴보면 실제 비즈니스 로직보다 트랜잭션 관련 코드가
+더 많다. **따라서 스프링을 활용하여 이러한 문제들을 해결해보도록 하자. (프레임 워크가 존재해야만 하는 이유이다.)**
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## 테스트 코드 작성 Tip
+### JUnit5 어노테이션 정리
+1. `@BeforeEach` : 테스트 코드 실행하기 전에 실행되는 메서드를 정의할 수 있다. `void before()`
+2. `@AfterEach` : 테스트 코드가 다 끝난 후에 실행되는 메서드를 정의할 수 있다. `void after()`
+```java
+    @BeforeEach
+    void before() {
+        DriverManagerDataSource dataSource = new DriverManagerDataSource(URL, USERNAME, PASSWORD);
+        memberRepository = new MemberRepositoryV2(dataSource);
+        memberService = new MemberServiceV2(dataSource, memberRepository);
+    }
+
+    @AfterEach
+    void after() throws SQLException {
+        memberRepository.delete(MEMBER_A);
+        memberRepository.delete(MEMBER_B);
+        memberRepository.delete(MEMBER_EX);
+    }
+```
+3. `@Test` : 테스트 메서드에 붙이는 어노테이션이다.
+4. `@DisplayName("출력 이름")` : 테스트 메서드에 대한 이름을 지정할 수 있다. 실제 테스트 출력 창에 해당 이름이 표시된다.
+```java
+    @Test
+    @DisplayName("정상 이체")
+    void accountTransfer() throws SQLException {
+        //given
+        Member memberA = new Member(MEMBER_A, 10000);
+        Member memberB = new Member(MEMBER_B, 10000);
+        memberRepository.save(memberA);
+        memberRepository.save(memberB);
+
+        //when
+        log.info("START TX");
+        memberService.accountTransfer(memberA.getMemberId(), memberB.getMemberId(), 2000);
+        log.info("END TX");
+
+        //then
+        Member findMemberA = memberRepository.findById(memberA.getMemberId());
+        Member findMemberB = memberRepository.findById(memberB.getMemberId());
+
+        assertThat(findMemberA.getMoney()).isEqualTo(8000);
+        assertThat(findMemberB.getMoney()).isEqualTo(12000);
+    }
+```
+5. `@Slf4j` : 로그를 찍을 때 사용하는 애노테이션이다. `log.info()`를 통해 특정 값에 대한 로그를 남길 수 있다. (`System.out.println()` 지양)
+
+### 테스트 코드 작성법
+- given : 테스트하기 위해 주어지는 값들에 대한 것
+- when : 실제 테스트 로직이 실행되는 부분
+- then : 테스트 실행 후 결과 값에 대한 판독이 일어나는 부분(테스트 값과 예상 값이 일치하는지 등등 판별)
+```java
+    @Test
+    @DisplayName("이체중 예외 발생")
+    void accountTransferEx() throws SQLException {
+        //given
+        Member memberA = new Member(MEMBER_A, 10000);
+        Member memberEX = new Member(MEMBER_EX, 10000);
+        memberRepository.save(memberA);
+        memberRepository.save(memberEX);
+
+        //when - 예외가 터지는지 확인
+        assertThatThrownBy(() -> memberService.accountTransfer(memberA.getMemberId(), memberEX.getMemberId(), 2000))
+                .isInstanceOf(IllegalStateException.class);
+
+        //then
+        Member findMemberA = memberRepository.findById(memberA.getMemberId());
+        Member findMemberEX = memberRepository.findById(memberEX.getMemberId());
+
+        assertThat(findMemberA.getMoney()).isEqualTo(8000);
+        assertThat(findMemberEX.getMoney()).isEqualTo(10000);
+    }
+```
+
+### assertj - Assertions 메서드 정리
+1. `assertThat` : 테스트 코드에서 가장 많이 쓰이는 메서드로 보통 `isEqualTo`와 같이 쓰임으로써
+**테스트 결과 값과 예상하는 값이 일치하는 지를 판단하는데 많이 쓰인다.**
+```java
+    @Test
+    @DisplayName("정상 이체")
+    void accountTransfer() throws SQLException {
+        //given
+        Member memberA = new Member(MEMBER_A, 10000);
+        Member memberB = new Member(MEMBER_B, 10000);
+        memberRepository.save(memberA);
+        memberRepository.save(memberB);
+
+        //when
+        log.info("START TX");
+        memberService.accountTransfer(memberA.getMemberId(), memberB.getMemberId(), 2000);
+        log.info("END TX");
+
+        //then
+        Member findMemberA = memberRepository.findById(memberA.getMemberId());
+        Member findMemberB = memberRepository.findById(memberB.getMemberId());
+
+        assertThat(findMemberA.getMoney()).isEqualTo(8000);
+        assertThat(findMemberB.getMoney()).isEqualTo(12000);
+    }
+```
+2. `assertThatThrownBy` : 예외가 잘 발생하는 지를 확인하는 메서드이다. 특정 메서드에서 예외를 Throw하는지를
+확인하는 것이다. 보통 람다식을 통해 확인하고자 하는 메서드를 작성한다. 또한 `isInstanceOf`를 통해 확인하고자 하는 예외 클래스를
+지정할 수 있다.
+```java
+    @Test
+    @DisplayName("이체중 예외 발생")
+    void accountTransferEx() throws SQLException {
+        //given
+        Member memberA = new Member(MEMBER_A, 10000);
+        Member memberEX = new Member(MEMBER_EX, 10000);
+        memberRepository.save(memberA);
+        memberRepository.save(memberEX);
+
+        //when - 예외가 터지는지 확인
+        assertThatThrownBy(() -> memberService.accountTransfer(memberA.getMemberId(), memberEX.getMemberId(), 2000))
+                .isInstanceOf(IllegalStateException.class);
+
+        //then
+        Member findMemberA = memberRepository.findById(memberA.getMemberId());
+        Member findMemberEX = memberRepository.findById(memberEX.getMemberId());
+
+        assertThat(findMemberA.getMoney()).isEqualTo(8000);
+        assertThat(findMemberEX.getMoney()).isEqualTo(10000);
+    }
+```
+- `memberService.accountTransfer()`가 예외를 확인하고자 하는 메서드이다. 또한 `isInstanceOf`의 파라미터인
+  `IllegalStateException.class`는 확인하고자 하는 예외 클래스이다.
 
 # 단축키 정리
 - 메서드 추출 : `컨트롤 + 알트 + M`
-- 테스트 코드 자동 생성 : `컨트롤 + 알트(or 쉬프트) + T`
+- 테스트 코드 자동 생성 : `컨트롤 + 알트 + T`
+- 메서드 파라미터 순서 변경 : `컨트롤 + F6`
+
