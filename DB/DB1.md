@@ -569,9 +569,11 @@ public class MemberRepositoryV1 {
 DB에서도 동시에 같은 Row(테이블의 행)에 접근하게 되면, **서로 다른 값을 수정하게 됨으로써 데이터가 서로 일치하지 않는 문제가 발생한다.**
  따라서 트랜잭션을 시작하고 마칠 때까지는 다른 세션에서 접근할 수 없도록 **Lock(락)** 을 얻어야 한다.
 ### DB 락 그림 예시
-[그림 1]
-[그림 2]
-[그림 3]
+![DB1](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/adf9dea0-246b-4c69-9276-ac3b3a93af3d)
+
+![DB2](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/44143843-5f64-4943-8a70-f400fe7108d7)
+
+![DB3](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/111c6727-4090-458d-801d-14038259d79c)
 
 이처럼 트랜잭션을 시작하여 쿼리문을 실행하기 위해서는 **락을 먼저 얻어야 한다.** 만약 락이 없는 상태에서 쿼리문을
 수행하게 되면 **락을 얻을 때까지 대기해야 한다.** 만약 락을 얻은 세션이 커밋을 함으로써 트랜잭션을 종료하면 락을 반납하게 된다.
@@ -589,7 +591,7 @@ Lock을 얻는다면 특정 값에 대한 조회가 끝날 때까지 누구도 �
 > 변경되어서는 안되는 값들이다.(금일 판매 총액, 재고 등) **이처럼 조회한 값으로 무언가를 해야할 때 값이 변경되는 것을 막기 위해
 > 조회하는 과정에서 Lock을 얻는 것이다.**
 
-[그림 4]
+![DB4](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/695bbd11-697b-4deb-b69e-659586cd4242)
 
 ```sql
 set autocommit false;
@@ -602,7 +604,7 @@ select * from member where member_id='memberA' for update;
 커밋이 되면, 실제 DB에 영향을 주기 때문이다. 따라서 테스트가 다 끝나면 Rollback을 하여 트랜잭션 시작 전 상태로 돌아가면
 원래 DB에 영향을 주지 않고 테스트를 안전하게 얼마든지 진행할 수 있다.
 
-[그림 5]
+![DB5](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/95ae2561-7d74-4d0e-b604-cd403e006cfb)
 
 물론 이처럼 커넥션을 파라미터로 전달하는 방식은 번거롭다. 실제로는 이러한 방식을 사용하지 않는다.
 
