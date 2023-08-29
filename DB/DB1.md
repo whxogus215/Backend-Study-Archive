@@ -678,7 +678,102 @@ Rollback 과 Commit 둘 다 트랜잭션이 종료되면 리소스를 종료해�
 더 많다. **따라서 스프링을 활용하여 이러한 문제들을 해결해보도록 하자. (프레임 워크가 존재해야만 하는 이유이다.)**
 
 
+# 애플리케이션의 구조와 추상화의 필요성
 
+## 애플리케이션의 전반적인 구조
+
+![DB1](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/42b97805-97e1-42a4-b782-d5956d5a85be)
+
+애플리케이션은 크게 컨트롤러(프레젠테이션) - 서비스(서비스) - 저장소(데이터 접근) - DB로 나뉜다.
+- 프레젠테이션 계층
+  - **UI**와 관련된 처리 담당
+  - **웹 요청과 응답**
+  - 사용자 **요청을 검증**
+  - HTTP 서블릿 같은 웹 기술, 스프링 MVC
+- 서비스 계층
+  - **비즈니스 로직**을 담당
+  - 주로 **순수 자바 코드**로 작성
+- 데이터 접근 계층
+  - 실제 DB에 접근하는 코드
+  - **JDBC, JPA, Redis, Mongo 등** 여러 기술들이 사용되는 계층이다.
+
+## 서비스 계층은 애플리케이션에서 가장 중요하며 변화에 민감하다
+애플리케이션이 발전함에 따라 UI 및 데이터 저장 기술이 변화하더라도 서비스 계층에 있는 **비즈니스 로직**은
+변경되어서는 안된다. 이들에게 종속될 경우, 유지보수에 많은 비용이 들기 때문이다. 따라서 클라이언트가 접근하는
+UI 기술 같은 것이 변경된다면 **프레젠테이션 계층의 코드만 변경되어야 하며**, JDBC에서 JPA로 기술을 변경하더라도
+**데이터 접근 계층 코드만 변경되어야 한다.** 따라서 서비스 계층은 데이터 접근 계층에 의존할 때, **추상화 된 인터페이스
+에 의존해야 한다.** 스프링은 이러한 추상화를 지원한다.
+
+## 기존 JDBC를 사용했을 때의 문제점
+```java
+@RequiredArgsConstructor
+public class MemberServiceV1 {
+ private final MemberRepositoryV1 memberRepository;
+ 
+ public void accountTransfer(String fromId, String toId, int money) throws SQLException {
+   Member fromMember = memberRepository.findById(fromId);
+   Member toMember = memberRepository.findById(toId);
+   
+   memberRepository.update(fromId, fromMember.getMoney() - money);
+   memberRepository.update(toId, toMember.getMoney() + money);
+ }
+}
+```
+이처럼 서비스 계층은 특별한 기술(JDBC, 서블릿 등)을 사용하지 않고 순수 자바의 코드만으로 구현되어야 한다.
+여기서 순수한 자바코드란 단순 구현되어 있는 메서드를 그대로 사용하는 것을 말한다. 특정 기술을 사용함으로써
+연관관계를 맺는다면 이후 기술이 변경되었을 때 서비스 계층의 많은 부분을 수정해야 할 것이다.
+
+물론 위에 `SQLException`이라는 JDBC 기술에 의존하고 있다. `memberRepository`에서 던진 예외이기에 이는 저장소에서
+처리해야 하는 것이다. 이 또한 예외를 다룰 때 알아보도록 한다. 그리고 `MemberRepositoryV1`라는 구체 클래스에 의존하고 있기에
+인터페이스에 의존하도록 변경할 필요도 있다.
+
+```java
+@Slf4j
+@RequiredArgsConstructor
+public class MemberServiceV2 {
+ private final DataSource dataSource;
+ private final MemberRepositoryV2 memberRepository;
+ public void accountTransfer(String fromId, String toId, int money) throws SQLException {
+   Connection con = dataSource.getConnection();
+   try {
+     con.setAutoCommit(false); //트랜잭션 시작
+     //비즈니스 로직
+     bizLogic(con, fromId, toId, money);
+     con.commit(); //성공시 커밋
+   } catch (Exception e) {
+       con.rollback(); //실패시 롤백
+       throw new IllegalStateException(e);
+   } finally {
+       release(con);
+   }
+ }
+ private void bizLogic(Connection con, String fromId, String toId, int money) throws SQLException {
+   Member fromMember = memberRepository.findById(con, fromId);
+   Member toMember = memberRepository.findById(con, toId);
+   
+   memberRepository.update(con, fromId, fromMember.getMoney() - money);
+   memberRepository.update(con, toId, toMember.getMoney() + money);
+ }
+}
+```
+**이는 서비스 계층에서 트랜잭션을 사용하는 경우이다.** 여기서 알 수 있는 문제점은 서비스 계층에서 트랜잭션을
+사용하기 위해 `Connection`,`DataSource`,`SQLException` 같은 **JDBC 기술에 의존하고 있다는 것이다.**
+이처럼 특정 기술에 의존함으로써 순수 비즈니스 로직보다 더 많은 양을 차지하고 있다. 이 때 JDBC를 JPA로 바꿀 경우,
+해당 트랜잭션 관련 코드들을 싹 다 고쳐야 한다는 문제가 생긴다.
+
+### 정리
+1. 트랜잭션 문제
+  - 트랜잭션을 사용하기 위해 서비스 계층에서 JDBC 구현 기술을 사용하고 있다.
+  - 데이터 접근에 관련된 코드들은 데이터 접근 계층에 몰아야 한다.
+  - 이와 같이 특정 기술에 의존하면 **JPA 같은 다른 데이터 접근 기술로 변경하였을 때, 코드를 싹 바꿔야 한다.**
+  - 같은 트랜잭션을 유지하기 위해 커넥션을 파라미터로 넘겨야 하는 문제가 있다. **(커넥션을 넘길 필요가 없는 경우와 구분해야 하는 번거로움이 발생하기 때문)**
+  - `try-catch-finally`와 같은 **반복되는 부분이 많다.**
+2. 예외 누수
+  - `SQLException` 같은 예외가 서비스 계층으로 전파된다는 문제가 발생한다. 이는 곧 서비스 계층에서 해당 기술에 의존하게 된다는 것이다.
+3. JDBC 반복 문제
+  - `try-catch-finally`와 같이 반복되는 코드가 많다.
+  - 커넥션을 열고, `PreparedStatement`를 사용하고, 결과를 매핑하고 실행한 다음 커넥션과 리소스를 정리하는 일련의 과정이
+모든 데이터 접근 메서드마다 동일하게 반복된다.
 
 
 
@@ -835,104 +930,6 @@ Rollback 과 Commit 둘 다 트랜잭션이 종료되면 리소스를 종료해�
 ```
 - `memberService.accountTransfer()`가 예외를 확인하고자 하는 메서드이다. 또한 `isInstanceOf`의 파라미터인
   `IllegalStateException.class`는 확인하고자 하는 예외 클래스이다.
-
-# 애플리케이션의 구조와 추상화의 필요성
-
-## 애플리케이션의 전반적인 구조
-
-[그림 1]
-
-애플리케이션은 크게 컨트롤러(프레젠테이션) - 서비스(서비스) - 저장소(데이터 접근) - DB로 나뉜다.
-- 프레젠테이션 계층
-  - **UI**와 관련된 처리 담당
-  - **웹 요청과 응답**
-  - 사용자 **요청을 검증**
-  - HTTP 서블릿 같은 웹 기술, 스프링 MVC
-- 서비스 계층
-  - **비즈니스 로직**을 담당
-  - 주로 **순수 자바 코드**로 작성
-- 데이터 접근 계층
-  - 실제 DB에 접근하는 코드
-  - **JDBC, JPA, Redis, Mongo 등** 여러 기술들이 사용되는 계층이다.
-
-## 서비스 계층은 애플리케이션에서 가장 중요하며 변화에 민감하다
-애플리케이션이 발전함에 따라 UI 및 데이터 저장 기술이 변화하더라도 서비스 계층에 있는 **비즈니스 로직**은
-변경되어서는 안된다. 이들에게 종속될 경우, 유지보수에 많은 비용이 들기 때문이다. 따라서 클라이언트가 접근하는
-UI 기술 같은 것이 변경된다면 **프레젠테이션 계층의 코드만 변경되어야 하며**, JDBC에서 JPA로 기술을 변경하더라도
-**데이터 접근 계층 코드만 변경되어야 한다.** 따라서 서비스 계층은 데이터 접근 계층에 의존할 때, **추상화 된 인터페이스
-에 의존해야 한다.** 스프링은 이러한 추상화를 지원한다.
-
-## 기존 JDBC를 사용했을 때의 문제점
-```java
-@RequiredArgsConstructor
-public class MemberServiceV1 {
- private final MemberRepositoryV1 memberRepository;
- 
- public void accountTransfer(String fromId, String toId, int money) throws SQLException {
-   Member fromMember = memberRepository.findById(fromId);
-   Member toMember = memberRepository.findById(toId);
-   
-   memberRepository.update(fromId, fromMember.getMoney() - money);
-   memberRepository.update(toId, toMember.getMoney() + money);
- }
-}
-```
-이처럼 서비스 계층은 특별한 기술(JDBC, 서블릿 등)을 사용하지 않고 순수 자바의 코드만으로 구현되어야 한다.
-여기서 순수한 자바코드란 단순 구현되어 있는 메서드를 그대로 사용하는 것을 말한다. 특정 기술을 사용함으로써
-연관관계를 맺는다면 이후 기술이 변경되었을 때 서비스 계층의 많은 부분을 수정해야 할 것이다.
-
-물론 위에 `SQLException`이라는 JDBC 기술에 의존하고 있다. `memberRepository`에서 던진 예외이기에 이는 저장소에서
-처리해야 하는 것이다. 이 또한 예외를 다룰 때 알아보도록 한다. 그리고 `MemberRepositoryV1`라는 구체 클래스에 의존하고 있기에
-인터페이스에 의존하도록 변경할 필요도 있다.
-
-```java
-@Slf4j
-@RequiredArgsConstructor
-public class MemberServiceV2 {
- private final DataSource dataSource;
- private final MemberRepositoryV2 memberRepository;
- public void accountTransfer(String fromId, String toId, int money) throws SQLException {
-   Connection con = dataSource.getConnection();
-   try {
-     con.setAutoCommit(false); //트랜잭션 시작
-     //비즈니스 로직
-     bizLogic(con, fromId, toId, money);
-     con.commit(); //성공시 커밋
-   } catch (Exception e) {
-       con.rollback(); //실패시 롤백
-       throw new IllegalStateException(e);
-   } finally {
-       release(con);
-   }
- }
- private void bizLogic(Connection con, String fromId, String toId, int money) throws SQLException {
-   Member fromMember = memberRepository.findById(con, fromId);
-   Member toMember = memberRepository.findById(con, toId);
-   
-   memberRepository.update(con, fromId, fromMember.getMoney() - money);
-   memberRepository.update(con, toId, toMember.getMoney() + money);
- }
-}
-```
-**이는 서비스 계층에서 트랜잭션을 사용하는 경우이다.** 여기서 알 수 있는 문제점은 서비스 계층에서 트랜잭션을
-사용하기 위해 `Connection`,`DataSource`,`SQLException` 같은 **JDBC 기술에 의존하고 있다는 것이다.**
-이처럼 특정 기술에 의존함으로써 순수 비즈니스 로직보다 더 많은 양을 차지하고 있다. 이 때 JDBC를 JPA로 바꿀 경우,
-해당 트랜잭션 관련 코드들을 싹 다 고쳐야 한다는 문제가 생긴다.
-
-### 정리
-1. 트랜잭션 문제
-  - 트랜잭션을 사용하기 위해 서비스 계층에서 JDBC 구현 기술을 사용하고 있다.
-  - 데이터 접근에 관련된 코드들은 데이터 접근 계층에 몰아야 한다.
-  - 이와 같이 특정 기술에 의존하면 **JPA 같은 다른 데이터 접근 기술로 변경하였을 때, 코드를 싹 바꿔야 한다.**
-  - 같은 트랜잭션을 유지하기 위해 커넥션을 파라미터로 넘겨야 하는 문제가 있다. **(커넥션을 넘길 필요가 없는 경우와 구분해야 하는 번거로움이 발생하기 때문)**
-  - `try-catch-finally`와 같은 **반복되는 부분이 많다.**
-2. 예외 누수
-  - `SQLException` 같은 예외가 서비스 계층으로 전파된다는 문제가 발생한다. 이는 곧 서비스 계층에서 해당 기술에 의존하게 된다는 것이다.
-3. JDBC 반복 문제
-  - `try-catch-finally`와 같이 반복되는 코드가 많다.
-  - 커넥션을 열고, `PreparedStatement`를 사용하고, 결과를 매핑하고 실행한 다음 커넥션과 리소스를 정리하는 일련의 과정이
-모든 데이터 접근 메서드마다 동일하게 반복된다.
-
 
 # 단축키 정리
 - 메서드 추출 : `컨트롤 + 알트 + M`
