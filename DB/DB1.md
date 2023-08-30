@@ -23,6 +23,7 @@
   - [기존 JDBC를 사용했을 때의 문제점](#기존-jdbc를-사용했을-때의-문제점)
   - [트랜잭션 추상화](#트랜잭션-추상화)
     - [스프링의 트랜잭션 추상화](#스프링의-트랜잭션-추상화)
+    - [스프링 트랜잭션 동작원리 정리(#스프링-트랜잭션-동작-원리-정리]
 - [테스트 코드 작성 Tip](#테스트-코드-작성-tip)
 - [단축키 정리](#단축키-정리)
 
@@ -783,14 +784,14 @@ JDBC와 JPA의 트랜잭션 관련 코드는 완전히 다르기 때문에 향�
 - JDBC : `con.setAutoCommit(false)` - 트랜잭션 시작
 - JPA : `transaction.begin()` - 트랜잭션 시작
 
-[그림 1]
+![DB1](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/5a6ebf45-24c5-4769-ad4b-ef28cd776596)
 
 **데이터 접근 계층뿐만 아니라 서비스 계층까지 데이터 접근 기술에 의존하고 있기 때문에 발생하는 문제이다.**
 
 트랜잭션은 **오토 커밋을 끄고, 로직을 수행 후, 커밋 혹은 롤백을 하는 단순한 절차로 이루어진다.**
 따라서 인터페이스에 위와 관련된 메서드만 정의하고 구현체가 이를 구현만 한다면 트랜잭션을 얼마든지 추상화 할 수 있을 것이다.
 
-[그림 2]
+![DB2](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/6d17c21a-dd6d-4bb9-a252-b92fa45e7054)
 
 이처럼 서비스 계층은 특정 트랜잭션 기술에 더이상 의존하지 않는다. 사용하는 쪽에서 생성자 주입을 통해 원하는 구현체를 DI를 통해
 주입하기만 하면 된다. 이로 인해 **OCP 원칙을 지키게 되었고, 서비스 계층은 코드를 변경하지 않은 채 다양한 트랜잭션
@@ -798,7 +799,7 @@ JDBC와 JPA의 트랜잭션 관련 코드는 완전히 다르기 때문에 향�
 를 지키게 된 것이다.**(구현체가 바뀌더라도 서비스 계층의 코드는 변경되지 않아도 됨)**
 
 ## 스프링의 트랜잭션 추상화
-[그림 3]
+![DB3](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/4e0646bd-178b-4ff8-a191-518684364a86)
 
 이처럼 스프링 트랜잭션에서는 `PlatformTransactionManager` 인터페이스가 핵심이다.
 
@@ -821,8 +822,9 @@ public interface PlatformTransactionManager extends TransactionManager {
 1. 코드가 지저분해진다.
 2. 파라미터로 사용하지 않는 경우, 즉 트랜잭션을 사용하지 않을 경우에는 파라미터가 없는 메서드를 따로 만들어줘야 한다.
 
-[그림 4]
-[그림 5]
+![DB4](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/4af4c9a3-779d-4971-814a-e3c33b12ff6b)
+
+![DB5](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/5c583564-a057-4766-9353-457867c9720d)
 
 스프링 트랜잭션의 동작 원리는 다음과 같다.
 1. 서비스 계층에서 트랜잭션을 시작할 때, **DataSource를 통해 커넥션을 만든 다음 트랜잭션을 시작한다.**
@@ -846,9 +848,13 @@ public interface PlatformTransactionManager extends TransactionManager {
   - **트랜잭션을 사용하기 위해 동기화된 커넥션일 경우,** 닫지 않고 그대로 유지해준다.
   - **트랜잭션 동기화 매니저가 관리하는 커넥션이 없을 경우,** 해당 커넥션을 닫는다.
 
+### 스프링 트랜잭션 동작 원리 정리
 
+![DB6](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/0a8ea3c9-5bc4-4e28-a78b-2893cba70e59)
 
+![DB7](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/8b39ef9b-9a4d-4efb-a830-69c012e9663d)
 
+![DB8](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/99cd2488-d524-47ae-94ae-e6e638e89752)
 
 
 
