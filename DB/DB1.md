@@ -24,6 +24,8 @@
   - [트랜잭션 추상화](#트랜잭션-추상화)
     - [스프링의 트랜잭션 추상화](#스프링의-트랜잭션-추상화)
     - [스프링 트랜잭션 동작원리 정리](#스프링-트랜잭션-동작-원리-정리)
+  - [트랜잭션 탬플릿](#트랜잭션-템플릿)
+    - [트랜잭션 템플릿 동작원리](#트랜잭션-템플릿-동작-원리) 
 - [테스트 코드 작성 Tip](#테스트-코드-작성-tip)
 - [단축키 정리](#단축키-정리)
 
@@ -856,10 +858,68 @@ public interface PlatformTransactionManager extends TransactionManager {
 
 ![DB8](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/99cd2488-d524-47ae-94ae-e6e638e89752)
 
+## 트랜잭션 템플릿
+```java
+public void accountTransfer(String fromId, String toId, int money) throws SQLException {
+        // 트랜잭션 시작
+        TransactionStatus status = transactionManager.getTransaction(new DefaultTransactionDefinition());
 
+        try {
+            // 비즈니스 로직 수행
+            bizLogic(fromId, toId, money);
+            transactionManager.commit(status); // 성공 시 커밋
+        } catch (Exception e) {
+            transactionManager.rollback(status); // 실패 시 롤백
+            throw new IllegalStateException(e);
+        }
+    }
+```
+해당 코드의 문제점은 서비스 계층의 메서드에서 **비즈니스 로직보다 트랜잭션 관련 로직이 더 많다는 것이다.**
+따라서 트랜잭션과 관련된 부분을 간소화 시키는 **트랜잭션 템플릿을 사용한다.**
 
+```java
+@Slf4j
+public class MemberServiceV3_2 {
 
+  private final TransactionTemplate txTemplate;
+  private final MemberRepositoryV3 memberRepository;
 
+  public MemberServiceV3_2(PlatformTransactionManager transactionManager, MemberRepositoryV3 memberRepository) {
+    this.txTemplate = new TransactionTemplate(transactionManager); // 트랜잭션 템플릿을 만들기 위해서는 트랜잭션 매니저가 필요
+    this.memberRepository = memberRepository;
+  }
+  ...
+}
+```
+이전과 달리 트랜잭션 매니저가 아니라 **트랜잭션 템플릿을 주입받는다.** 이 때 외부 주입과정에서 생성자에 트랜잭션 매니저를 주입한다.
+따라서 이 경우는 `@RequiredArgsConstructor`를 사용하지 않았다. (외부 빈 설정을 통해 주입받아도 된다.)
+
+```java
+public void accountTransfer(String fromId, String toId, int money) throws SQLException {
+
+        txTemplate.executeWithoutResult((status) -> {
+            // 비즈니스 로직 수행
+            try {
+                bizLogic(fromId, toId, money);
+            } catch (SQLException e) {
+                throw new IllegalStateException(e);
+            }
+        });
+}
+```
+트랜잭션 템플릿을 사용한 결과 비즈니스 로직과 트랜잭션 로직을 하나의 메서드로 간소화 할 수 있었다. **트랜잭션의 응답 값이
+있을 경우, `execute()`를, 없을 경우, `executeWithoutResult()`를 사용한다.**
+
+### 트랜잭션 템플릿 동작 원리
+1. 비즈니스 로직이 정상 수행되면 커밋한다.
+2. **언체크 예외가 발생하면 롤백한다. 그외의 경우는 커밋한다.**
+3. `bizLogic()` 호출했을 때 체크 예외(`SQLException`)가 발생한다. 람다식에서는 이를 던질 수 없기 때문에 이를
+언체크 예외로 바꾸어서 던지도록 작성하였다.(`SQLException -> IllegalStateException`)
+
+이처럼 트랜잭션 템플릿을 통해 반복되는 트랜잭션 코드를 제거할 수 있었다. 하지만 여전히 서비스 계층에서 비즈니스 로직과
+트랜잭션을 처리하는 기술이 함께 사용되고 있다. **이처럼 비즈니스 로직과 트랜잭션 로직이라는 두 가지 관심사를 
+하나의 클래스에서 처리할 경우, 유지보수가 어려워 진다. 또한 트랜잭션을 사용하지 않는 메서드에 대한 처리도 번거로워 진다.**
+서비스 로직에는 가급적 **핵심 비즈니스 로직만 있도록 해야 한다.** 트랜잭션 기술을 사용하되 이 코드를 분리시켜야 한다.
 
 
 
