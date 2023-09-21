@@ -931,13 +931,14 @@ public void accountTransfer(String fromId, String toId, int money) throws SQLExc
 **하지만 여전히 서비스 계층에 순수한 비즈니스 로직만 남지 않는다는 문제가 존재한다.** 이는 스프링 AOP를 통해
 프록시를 도입하면 문제를 해결할 수 있다. **프록시 즉, 중개인을 통해 트랜잭션 코드를 수행한다고 보면 된다.**
 
-[그림1]
-[그림2]
+![DB1](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/10188164-5f15-483e-a0b4-664f7fb1316e)
+
+![DB2](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/4446dc72-e0b0-4e60-aa47-eeabf4d070e0)
 
 이처럼 프록시를 도입함으로써 트랜잭션을 처리하는 객체와 서비스 객체를 **분리할 수 있다.** 트랜잭션과 관련된 부분은
 트랜잭션 프록시가 처리하기 때문에 서비스 객체는 비즈니스 로직만 갖고 있어도 된다.
 
-[그림3]
+![DB3](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/f4d0bb9e-59f9-4d3a-9a77-82d422b8a409)
 
 이처럼 트랜잭션 프록시 객체는 서비스 계층의 로직을 갖고오며, 이를 트랜잭션 관련 코드들로 감싸고 있다. 따라서 트랜잭션 프록시도
 기존에 있는 스프링 트랜잭션 추상화 기술을 사용하는 것이다. 뒤에서 얘기하겠지만 결국, **테스트 환경에서 트랜잭션 프록시를 사용하려면
@@ -1050,13 +1051,13 @@ void AopCheck() {
 }
 ```
 
-[그림 4]
+![DB4](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/1c56fade-b5bc-4c0e-97db-e06f371982c1)
 
 그림처럼 CGLIB 부분이 붙어있다. **이는 해당 객체에 프록시가 적용됐다는 뜻이다.** `@Transaction`이 붙은 객체는
 MemberService이기 때문에 이부분만 프록시가 적용되었다. 이처럼 트랜잭션 AOP를 사용할 경우, 프록시 객체가 트랜잭션을 수행하며,
 **실제 비즈니스 로직이 호출될 때 서비스 객체가 사용됨을 알 수 있다.**
 
-[그림 5]
+![DB5](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/049f16a8-f460-4470-96ab-41278ea6bf84)
 
 ### 선언적 트랜잭션과 프로그래밍 트랜잭션
 - 선언적 트랜잭션 : `@Transaction`처럼 단순 선언을 통해 트랜잭션 기능을 활용할 수 있다.
