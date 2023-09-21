@@ -26,6 +26,7 @@
     - [스프링 트랜잭션 동작원리 정리](#스프링-트랜잭션-동작-원리-정리)
   - [트랜잭션 탬플릿](#트랜잭션-템플릿)
     - [트랜잭션 템플릿 동작원리](#트랜잭션-템플릿-동작-원리) 
+- [트랜잭션 AOP]
 - [테스트 코드 작성 Tip](#테스트-코드-작성-tip)
 - [단축키 정리](#단축키-정리)
 
@@ -920,6 +921,157 @@ public void accountTransfer(String fromId, String toId, int money) throws SQLExc
 트랜잭션을 처리하는 기술이 함께 사용되고 있다. **이처럼 비즈니스 로직과 트랜잭션 로직이라는 두 가지 관심사를 
 하나의 클래스에서 처리할 경우, 유지보수가 어려워 진다. 또한 트랜잭션을 사용하지 않는 메서드에 대한 처리도 번거로워 진다.**
 서비스 로직에는 가급적 **핵심 비즈니스 로직만 있도록 해야 한다.** 트랜잭션 기술을 사용하되 이 코드를 분리시켜야 한다.
+
+## 트랜잭션 AOP
+지금까지 트랜잭션을 편리하게 사용하기 위해 **트랜잭션 추상화 및 템플릿**을 적용하였다.
+- 트랜잭션 추상화를 통해 **JDBC, JPA 등 여러 데이터 접근 기술에 의존하지 않는 코드를 작성할 수 있었다.**
+- 트랜잭션 템플릿을 통해 **트랜잭션을 위해 수행되는 반복 코드들을 줄임으로써 서비스 계층에서 트랜잭션 코드를
+최소한으로 줄일 수 있었다.**
+
+**하지만 여전히 서비스 계층에 순수한 비즈니스 로직만 남지 않는다는 문제가 존재한다.** 이는 스프링 AOP를 통해
+프록시를 도입하면 문제를 해결할 수 있다. **프록시 즉, 중개인을 통해 트랜잭션 코드를 수행한다고 보면 된다.**
+
+[그림1]
+[그림2]
+
+이처럼 프록시를 도입함으로써 트랜잭션을 처리하는 객체와 서비스 객체를 **분리할 수 있다.** 트랜잭션과 관련된 부분은
+트랜잭션 프록시가 처리하기 때문에 서비스 객체는 비즈니스 로직만 갖고 있어도 된다.
+
+[그림3]
+
+이처럼 트랜잭션 프록시 객체는 서비스 계층의 로직을 갖고오며, 이를 트랜잭션 관련 코드들로 감싸고 있다. 따라서 트랜잭션 프록시도
+기존에 있는 스프링 트랜잭션 추상화 기술을 사용하는 것이다. 뒤에서 얘기하겠지만 결국, **테스트 환경에서 트랜잭션 프록시를 사용하려면
+트랜잭션 추상화인 PlatformTransactionManager 빈이 필요하다.**
+
+### 스프링이 트랜잭션 AOP를 제공하는 이유
+트랜잭션은 데이터를 처리하는 데 있어서 매우 중요한 기술 중 하나이다. 따라서 스프링은 이를 처리하기 위한
+다양한 기능들을 제공한다. 이러한 기능들을 사용하면 트랜잭션 처리에 필요한 스프링 빈도 자동으로 등록해준다. (다만 테스트
+코드에서는 수동으로 빈 등록 필요)
+
+```java
+/*
+* 트랜잭션 - @Transactional AOP
+*/
+@Slf4j
+public class MemberServiceV3_3 {
+
+  private final MemberRepositoryV3 memberRepository;
+
+  public MemberServiceV3_3(MemberRepositoryV3 memberRepository) {
+    this.memberRepository = memberRepository;
+  }
+
+  @Transactional // 이 비즈니스 로직에 대해 Transaction을 수행함(성공 시 커밋, 실패 시 롤백)
+  public void accountTransfer(String fromId, String toId, int money) throws SQLException {
+    // 비즈니스 로직만 남겨둠
+    bizLogic(fromId, toId, money);
+  }
+
+  private void bizLogic(String fromId, String toId, int money) throws SQLException {
+    Member fromMember = memberRepository.findById(fromId);
+    Member toMember = memberRepository.findById(toId);
+
+    memberRepository.update(fromId, fromMember.getMoney() - money);
+    validation(toMember);
+    memberRepository.update(toId, toMember.getMoney() + money);
+  }
+}
+```
+이처럼 트랜잭션이 필요한 메서드 혹은 클래스 자체에 `@Transactional` 어노테이션을 붙여주기만 하면 알아서
+스프링에서 **트랜잭션 프록시를 적용해준다.**
+
+## 트랜잭션 어노테이션 테스트
+`@Transcation`은 기본적으로 스프링 AOP를 사용하기 때문에 **스프링 컨테이너가 필요하다.**
+따라서 테스트 환경에서 스프링 컨테이너를 사용하기 위해서는 `@SpringBootTest` 어노테이션을 사용해야 한다.
+이렇게하면 테스트 시 스프링 부트를 통해 스프링 컨테이너를 생성한다. 그리고 `@Autowired`를 통해 빈을 사용할 수 있다.
+
+스프링 부트가 자동으로 관리하는 빈 외에 추가로 설정해야 할 빈이 있을 경우, Config 메서드를 만든 다음 `@TestConfig`를 활용한다.
+
+### TestConfig
+- `DataSource`, `DataSourceTransactionManager`를 테스트 환경에서 사용하기 위해 빈으로 등록해야 한다.
+- `@Transaction`을 사용하는 스프링 AOP는 스프링 빈에 등록된 트랜잭션 매니저를 사용한다. 따라서 트랜잭션 매니저(그리고 이를 사용하기 위해서는
+DataSource도 같이)를 빈으로 등록해야 한다.
+> 테스트 환경이 아닌 실제 서비스 코드에서는 스프링 부트에서 자동으로 등록시킨다. 따라서 `@Transaction`을 사용하는
+서비스 객체만 빈으로 등록하면 된다.
+
+```java
+/*
+ * 트랜잭션 - @Transactional AOP
+ * */
+@Slf4j
+@SpringBootTest
+class MemberServiceV3_3Test {
+
+  public static final String MEMBER_A = "memberA";
+  public static final String MEMBER_B = "memberB";
+  public static final String MEMBER_EX = "ex";
+
+  @Autowired
+  private MemberRepositoryV3 memberRepository;
+  @Autowired
+  private MemberServiceV3_3 memberService;
+}
+```
+```java
+@TestConfiguration
+    static class TestConfig {
+        @Bean
+        DataSource dataSource() {
+            return new DriverManagerDataSource(URL, USERNAME, PASSWORD);
+        }
+
+        @Bean // 트랜잭션 프록시에서 사용하기 때문에 빈 등록 필요!
+        PlatformTransactionManager transactionManager() {
+            return new DataSourceTransactionManager(dataSource());
+        }
+
+        @Bean
+        MemberRepositoryV3 memberRepositoryV3() {
+            return new MemberRepositoryV3(dataSource());
+        }
+
+        @Bean
+        MemberServiceV3_3 memberServiceV3_3() {
+            return new MemberServiceV3_3(memberRepositoryV3());
+        }
+    }
+```
+
+### 트랜잭션 프록시 확인
+
+```java
+@Test
+void AopCheck() {
+    log.info("memberService class={}", memberService.getClass()); // 실제 서비스 객체가 아닌 트랜잭션 프록시 객체가 출력됨
+    log.info("memberRepository class={}", memberRepository.getClass());
+
+    Assertions.assertThat(AopUtils.isAopProxy(memberService)).isTrue();
+    Assertions.assertThat(AopUtils.isAopProxy(memberRepository)).isFalse();
+}
+```
+
+[그림 4]
+
+그림처럼 CGLIB 부분이 붙어있다. **이는 해당 객체에 프록시가 적용됐다는 뜻이다.** `@Transaction`이 붙은 객체는
+MemberService이기 때문에 이부분만 프록시가 적용되었다. 이처럼 트랜잭션 AOP를 사용할 경우, 프록시 객체가 트랜잭션을 수행하며,
+**실제 비즈니스 로직이 호출될 때 서비스 객체가 사용됨을 알 수 있다.**
+
+[그림 5]
+
+### 선언적 트랜잭션과 프로그래밍 트랜잭션
+- 선언적 트랜잭션 : `@Transaction`처럼 단순 선언을 통해 트랜잭션 기능을 활용할 수 있다.
+  - **실무에서는 대부분 이 방식을 사용한다.** 
+- 프로그래밍 트랜잭션 : 트랜잭션 매니저 혹은 템플릿을 사용하여 트랜잭션 관련 코드를 직접 작성한다.
+  - 스프링 AOP를 사용하지 않기 때문에 테스트 시에 가끔 사용될 수도 있다.
+- **트랜잭션을 사용할 경우, 웬만하면 스프링 AOP를 사용한 `@Transaction`을 사용하는 걸로 하자.**
+
+
+### 정리
+사용자는 트랜잭션을 사용해야 할 경우, 해당 비즈니스 로직에 `@Transaction`만 붙여주면 된다.(딸깍)
+그러면 해당 비즈니스 로직에 대한 트랜잭션(오토커밋 False, 커밋/롤백) 기능을 스프링 트랜잭션 AOP에서 자동으로
+처리해준다. 즉, `@Transaction`은 서비스 계층에서 주로 사용됨을 알 수 있다. 또한 서비스 로직만을 순수하게 남겨놓을 수 있다.
+
+
 
 
 
