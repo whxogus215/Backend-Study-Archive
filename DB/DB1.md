@@ -28,6 +28,11 @@
     - [트랜잭션 템플릿 동작원리](#트랜잭션-템플릿-동작-원리) 
 - [트랜잭션 AOP](#트랜잭션-aop)
   - [트랜잭션 어노테이션 테스트](#트랜잭션-어노테이션-테스트) 
+
+
+- [스프링 부트의 자동 리소스 등록 - 현재 제일 많이 쓰이는 방법](#스프링-부트의-자동-리소스-등록)
+
+
 - [테스트 코드 작성 Tip](#테스트-코드-작성-tip)
 - [단축키 정리](#단축키-정리)
 
@@ -990,7 +995,7 @@ public class MemberServiceV3_3 {
 스프링 부트가 자동으로 관리하는 빈 외에 추가로 설정해야 할 빈이 있을 경우, Config 메서드를 만든 다음 `@TestConfig`를 활용한다.
 
 ### TestConfig
-- `DataSource`, `DataSourceTransactionManager`를 테스트 환경에서 사용하기 위해 빈으로 등록해야 한다.
+- `DataSource`, `DataSourceTransactionManager`를 테스트 환경에서 사용하기 위해 빈으로 등록해야 한다. (스프링 부트 자동화로 인해 직접 등록 안해도 된다! [스프링 부트의 자동 리소스 등록 참고](#스프링-부트의-자동-리소스-등록) )
 - `@Transaction`을 사용하는 스프링 AOP는 스프링 빈에 등록된 트랜잭션 매니저를 사용한다. 따라서 트랜잭션 매니저(그리고 이를 사용하기 위해서는
 DataSource도 같이)를 빈으로 등록해야 한다.
 > 테스트 환경이 아닌 실제 서비스 코드에서는 스프링 부트에서 자동으로 등록시킨다. 따라서 `@Transaction`을 사용하는
@@ -1074,6 +1079,107 @@ MemberService이기 때문에 이부분만 프록시가 적용되었다. 이처�
 처리해준다. 즉, `@Transaction`은 서비스 계층에서 주로 사용됨을 알 수 있다. 또한 서비스 로직만을 순수하게 남겨놓을 수 있다.
 
 
+## 스프링 부트의 자동 리소스 등록
+스프링 부트가 등장하기 전에는 **데이터 소스와 트랜잭션 매니저를 직접 스프링 빈으로 등록해서 사용했다.**
+그러나 스프링 부트를 사용하게 되면서 이러한 것들을 자동화하기 때문에 직접 설정할 필요가 없어졌다.
+필자 또한 실제 프로젝트에서 이들을 사용했을 때, 구현체를 어디서 등록하는 건지 궁금했었는데 이 부분을 배우면서
+그러한 궁금증이 사라지게 되었다.
+
+```java
+@Bean
+DataSource dataSource() {
+    return new DriverManagerDataSource(URL, USERNAME, PASSWORD);
+}
+@Bean
+PlatformTransactionManager transactionManager() {
+    return new DataSourceTransactionManager(dataSource());
+}
+```
+- 과거에는 이처럼 수동으로 빈 등록을 해야 했다. **하지만 스프링 부트를 사용하는 시점에서 이러한 과정을 할 필요가 없어졌다.**
+
+### DataSource - 자동 등록
+**스프링 부트는 `DataSource`를 스프링 빈에 자동으로 등록하며, 등록되는 빈 이름은 `dataSource`이다.** 즉, 위에 있는 코드인
+`dataSource()`를 스프링 부트가 알아서 하는 것이다. (물론 사용자가 직접 `DataSource`를 빈으로 등록할 경우, 스프링 부트는 `DataSource`를
+자동으로 등록하지 않는다.)
+
+**스프링 부트는 `application.properties` 파일에 있는 속성 값을 사용해서 `DataSource`를 생성하여, 스프링 빈에 등록한다.**
+따라서 JDBC 혹은 JPA 라이브러리를 등록하고 실행할 때, 해당 파일에 속성 값이 없는 상태라면 에러가 발생한다. 그 이유는
+DataSource를 스프링 부트가 빈으로 등록해야하는 시점에서 속성 값이 없기 때문에 에러가 발생하는 것이다.
+
+```properties
+spring.datasource.url=jdbc:h2:tcp://localhost/~/test
+spring.datasource.username=sa
+spring.datasource.password=
+```
+
+스프링 부트가 기본적으로 생성하는 데이터 소스는 **커넥션 풀을 제공하는 `HikariDataSource`이다.**
+따라서 커넥션 풀과 관련된 설정도 **properties 파일의 속성 값으로 지정할 수 있다.**
+만약, `spring.datasource.url` 속성이 없을 경우, 내장 데이터베이스(메모리 DB)를 생성하려고 시도한다.
+
+### 트랜잭션 매니저 - 자동 등록
+스프링 부트는 **적절한 트랜잭션 매니저(`PlatformTransactionManager`)를 자동으로 스프링 빈에 등록한다.**
+이 때, 자동으로 등록되는 스프링 빈 이름은 `transactionManager`로 위 코드인 `transactionManager()`를 자동으로 실행하는 것이다.
+(마찬가지로 사용자가 직접 트랜잭션 매니저를 빈으로 등록할 경우, 스프링 부트는 자동으로 등록하지 않는다.)
+
+`PlatformTransactionManager`는 트랜잭션 추상화를 위한 인터페이스이다. **즉, JPA 트랜잭션, JDBC 트랜잭션 등
+여러 데이터 접근 기술들의 트랜잭션을 추상화한 것이다. 기존에 겹치는 이름이 있어서 TransactionManager 앞에 Platform
+을 붙인 것으로 예상된다.** 어쨌든 실제 빈으로 등록할 때는 `PlatformTransactionManager`가 아닌 구현체(`DataSourceTransactionmanager`, `JpaTransactionmanager` 등)
+가 등록되어야 한다.
+
+스프링 부트에 등록된 라이브러리를 보고 트랜잭션 매니저의 구현체를 결정한다. 라이브러리로 JDBC를 추가했다면
+`DataSourceTransactionManager`를 등록한다. 만약, 라이브러리로 JPA를 추가했다면 `JpaTransactionManager`를
+등록한다. **둘 다 사용할 경우에는 `JpaTransactionManager`를 등록한다. 왜냐하면 `JpaTransactionManager`가
+`DataSourceTransactionManager`가 제공하는 기능들을 대부분 지원하기 때문이다.**
+
+```java
+@TestConfiguration
+static class TestConfig {
+ @Bean
+ DataSource dataSource() {
+    return new DriverManagerDataSource(URL, USERNAME, PASSWORD);
+ }
+ @Bean
+ PlatformTransactionManager transactionManager() {
+    return new DataSourceTransactionManager(dataSource());
+ }
+ @Bean
+ MemberRepositoryV3 memberRepositoryV3() {
+    return new MemberRepositoryV3(dataSource());
+ }
+ @Bean
+ MemberServiceV3_3 memberServiceV3_3() {
+    return new MemberServiceV3_3(memberRepositoryV3());
+ }
+}
+```
+이렇게 수동으로 등록할 경우, 스프링 부트가 자동으로 등록하지 않는다.
+
+```java
+@TestConfiguration
+ static class TestConfig {
+ private final DataSource dataSource;
+    public TestConfig(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+     @Bean
+     MemberRepositoryV3 memberRepositoryV3() {
+        return new MemberRepositoryV3(dataSource);
+     }
+     @Bean
+     MemberServiceV3_3 memberServiceV3_3() {
+        return new MemberServiceV3_3(memberRepositoryV3());
+     }
+ }
+```
+하지만 `properties`에 DataSource 설정에 필요한 값들을 지정할 경우, 스프링 부트에서 자동으로 생성한다.
+트랜잭션 매니저 또한 자동으로 등록된다.
+
+### 정리
+이처럼 데이터 소스와 트랜잭션 매니저는 스프링 부트와 설정 값을 통해 자동으로 등록할 수 있다.
+이 방법이 편하며 관련된 설정 값은 `properties`를 통해 설정만 하면 되기 때문에 훨씬 편리하다.
+
+- 데이터소스 자동 등록 관련 문서 : https://docs.spring.io/spring-boot/docs/current/reference/html/data.html#data.sql.datasource.production
+- properties 설정 관련 문서 : https://docs.spring.io/spring-boot/docs/current/reference/html/application-properties.html
 
 
 
