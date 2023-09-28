@@ -1182,24 +1182,6 @@ static class TestConfig {
 - properties 설정 관련 문서 : https://docs.spring.io/spring-boot/docs/current/reference/html/application-properties.html
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ## 테스트 코드 작성 Tip
 ### JUnit5 어노테이션 정리
 1. `@BeforeEach` : 테스트 코드 실행하기 전에 실행되는 메서드를 정의할 수 있다. `void before()`
