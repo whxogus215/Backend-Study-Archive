@@ -64,9 +64,11 @@ public class TestDataInit {
 로그인의 상태를 유지하기 위해서는 웹 브라우저에게 쿠키를 전달함으로써 가능해진다.
 서버에서 한 번 쿠키를 저장해서 반환하면, 클라이언트는 해당 쿠키를 통해 인증을 할 수 있다.
 
-[그림 1]
-[그림 2]
-[그림 3]
+![MVC1](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/bb753517-ad17-4d87-952f-3953b373a155)
+
+![MVC2](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/5386f467-0a88-454f-a9d8-6dc118dd57b3)
+
+![MVC3](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/d4cbe519-0325-4dd4-9165-6bc332d29978)
 
 ## 쿠키의 보안 문제점
 쿠키는 웹 브라우저에서 얼마든지 조작이 가능하다. 따라서 보안상의 이슈가 존재할 수 있다.
@@ -88,14 +90,16 @@ public class TestDataInit {
 방법을 말한다.** 세션은 로그인 기능에서 핵심적인 기술 중 하나이기 때문에 스프링에서 이미 구현을 해놓았다.
 이를 잘 사용하면 로그인 기능을 쉽게 구현할 수 있다.
 
-[그림 4]
-[그림 5]
-[그림 6]
+![MVC4](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/16fdc6db-6a4c-4e94-bd29-da74e279782d)
+
+![MVC5](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/8000ae9a-dc45-486c-b5d5-7f5cd70beb1e)
+
+![MVC6](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/516a6741-e5ed-4b68-8385-1f03508c4686)
 
 이처럼 서버에서 세션 ID를 생성하여 쿠키로 전달할 수 있다면 클라이언트는 연결 정보를 유지할 수 있다.
 또한 쿠키에 중요한 정보를 저장하는 것이 아니기 때문에 보안상 이슈도 해결이 된다.
 
-[그림 7]
+![MVC7](https://github.com/whxogus215/Backend-Study-Archive/assets/70999462/d79967db-365c-4e1d-b7c3-725bcce2cc11)
 
 # 스프링에서 세션기능 사용하는 법
 
